@@ -97,7 +97,7 @@ Contributions are welcome! Please follow these steps:
 ---
 
 ## 📧 Contact
-For any questions or issues, please open an **issue** or reach out to **your-email@example.com**.
+For any questions or issues, please open an **issue** or reach out to **ibrahimolalekana@u.boisestate.edu**.
 
 ---
 

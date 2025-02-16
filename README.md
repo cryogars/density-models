@@ -37,6 +37,8 @@ The dataset used in this project are:
 - SNOTEL Dataset - was downloaded using [metloom](https://metloom.readthedocs.io/en/latest/usage.html#snotel).
 - [Global Seasonal-Snow Classification on NSIDC](https://nsidc.org/data/nsidc-0768/versions/1). For this work, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`. 
 
+## 💻 Software & Hardware List
+
 ## ⚙️ Installation and Setup
 
 ### 1️⃣ Install Conda

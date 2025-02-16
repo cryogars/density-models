@@ -21,10 +21,10 @@
 
 ## 📖 Overview
 
-A machine learning for snowpack bulk density ($\rho_s$) estimation project.
+A machine learning for snowpack bulk density ($\rho_s$) estimation project - a link to the publication will follow shortly.
 
 This repository includes:
-- Source code for **density-models**.
+- Source code for our paper.
 - A reproducible Conda environment.
 - Instructions for setup and usage.
 

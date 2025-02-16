@@ -1,4 +1,4 @@
-## Snowpack Bulk Density Prediction using Machine Learning
+<!-- ## Snowpack Bulk Density Prediction using Machine Learning -->
 
 
 <!-- [![image](https://img.shields.io/pypi/v/density-models.svg)](https://pypi.python.org/pypi/density-models)
@@ -12,15 +12,16 @@
 -   Documentation: https://Ibrahim-Ola.github.io/density-models -->
     
 
-## Features
+<!-- ## Features
 
--   TODO
+-   TODO -->
 
 
 # 📌 Density Models
 
 ## 📖 Overview
-A machine learning for snow density estimation project.
+
+A machine learning for snowpack bulk density ($\rho_s$) estimation project.
 
 This repository includes:
 - Source code for **density-models**.

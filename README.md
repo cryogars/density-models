@@ -18,12 +18,39 @@
 
 <h1 align="center">
 Snow Density Estimation using Machine Learning</h1>
-<p align="center">This is the codebase for A Machine Learning Model for Estimating Snow Water Equivalent from Snow Depth and Seasonal Snow Climate Class.
+<p align="center">This is the codebase for "A Machine Learning Model for Estimating Snow Water Equivalent from Snow Depth and Seasonal Snow Climate Class."
 </p>
 
 <!-- <p align="center">This is the codebase for <a href ="https://amzn.to/43PuIkQ"> Generative AI with LangChain, 2024 Edition</a>, published by Packt. -->
 
-# 📌 Density Models
+<!-- # 📌 Density Models -->
+
+</details>
+<details open> 
+  <summary><h2>Overview</summary>
+<ul>
+
+<li>Source code for our paper (*doi* will be shared after paper acceptance).</li>
+
+<li>A reproducible Conda environment.</li>
+
+<li>Instructions for setup and usage.</li>
+
+<!-- <li>Understand transformer models and attention mechanisms</li>
+
+<li>Automate data analysis and visualization using pandas and Python</li>
+
+<li>Grasp prompt engineering to improve performance</li>
+
+<li>Fine-tune LLMs and get to know the tools to unleash their power</li>
+
+<li>Deploy LLMs as a service with LangChain and apply evaluation strategies</li>
+
+<li>Privately interact with documents using open-source LLMs to prevent data leaks</li> -->
+
+</ul>
+
+
 
 ## 📖 Overview
 

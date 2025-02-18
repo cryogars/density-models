@@ -1,29 +1,9 @@
-<!-- ## Snowpack Bulk Density Prediction using Machine Learning -->
 
-
-<!-- [![image](https://img.shields.io/pypi/v/density-models.svg)](https://pypi.python.org/pypi/density-models)
-[![image](https://img.shields.io/conda/vn/conda-forge/density-models.svg)](https://anaconda.org/conda-forge/density-models) -->
-
-
-<!-- **A machine learning for snow density estimation project**
-
-
--   Free software: MIT License
--   Documentation: https://Ibrahim-Ola.github.io/density-models -->
-    
-
-<!-- ## Features
-
--   TODO -->
 
 <h1 align="center">
 Snow Density Estimation using Machine Learning</h1>
 <p align="center">This is the codebase for "A Machine Learning Model for Estimating Snow Water Equivalent from Snow Depth and Seasonal Snow Climate Class."
 </p>
-
-<!-- <p align="center">This is the codebase for <a href ="https://amzn.to/43PuIkQ"> Generative AI with LangChain, 2024 Edition</a>, published by Packt. -->
-
-<!-- # 📌 Density Models -->
 
 <details open> 
   <summary><h2>Overview</summary>
@@ -47,7 +27,7 @@ This study proposes a machine learning model for estimating snowpack bulk densit
 The dataset used in this study comes from two sources:
 
 - SNOTEL Dataset - was downloaded using [metloom](https://metloom.readthedocs.io/en/latest/usage.html#snotel).
-- [Global Seasonal-Snow Classification on NSIDC](https://nsidc.org/data/nsidc-0768/versions/1). For this project, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
+- [Global Seasonal Snow Classification](https://nsidc.org/data/nsidc-0768/versions/1).
 </details>
 
 <details open> 
@@ -79,80 +59,73 @@ cd ml_density
 git https://github.com/cryogars/density-models.git
 cd density-models
 ```
-</details>
 
-## ⚙️ Installation and Setup
-
-### 1️⃣ Install Conda
-If you don’t have Conda installed, download **[Miniconda](https://docs.conda.io/en/latest/miniconda.html)** or **[Anaconda](https://www.anaconda.com/)**.
-
-### 2️⃣ Clone This Repository
-```bash
-git clone git@github.com:cryogars/density-models.git
-cd your-repo-name
-```
-
-### 3️⃣ Create and Activate the Conda Environment
+### 4️⃣ Create and Activate the Conda Environment
 Run the following commands to create a reproducible Conda environment:
 ```bash
 conda env create --file environment.yml
-conda activate my_project_env  # Use the name defined in environment.yml
+conda activate ml_density_env 
 ```
 
-### 4️⃣ Verify Installation
+### 5️⃣ Verify Installation
 Ensure everything is set up correctly:
 ```bash
-python --version  # Should match the version in environment.yml
+python --version  # Should return 3.11.5
 conda list  # Displays installed packages
 ```
 
-### 5️⃣ Updating the Environment
-If you install a new package, manually add it to `environment.yml`, then update the environment:
+### 5️⃣ Install Source Code
+
 ```bash
-conda env update --file environment.yml --prune
+pip install .
 ```
 
-### 6️⃣ Deactivating and Removing the Environment
-To deactivate the environment:
+If you wish to modify the source code, install in development mode:
+
+```bash
+pip install -e .
+```
+</details>
+
+<details open> 
+  <summary><h2>Directory Setup</summary>
+
+Create the data folder and dowload:
+
+1. SNOTEL Data: [link](https://drive.google.com/file/d/1tcMnNPq_SYLGoLEY-FeBJVaJf1qqtntZ/view?usp=sharing). 
+2. Global Seasonal Snow Classification on NSIDC: [NSIDC link](https://nsidc.org/data/nsidc-0768/versions/1). For this project, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
+
+</details>
+
+<details open> 
+  <summary><h2>Deactivate and/or Remove Environment</summary>
+
+After running the experiments, you can deactivate the conda environment by running the command below:
 ```bash
 conda deactivate
 ```
-To completely remove the environment:
+
+To completely remove the environment, run:
 ```bash
-conda env remove --name my_project_env
+conda env remove --name ml_density_env
 ```
+</details>
 
----
+<details open> 
+  <summary><h2>Acknowledgments</summary>
 
-## 🚀 Usage
-**(Explain how users should use your project. Provide examples, command-line instructions, or API usage if applicable.)**
+The authors would like to thank:
 
-```bash
-python main.py  # Example of running the project
-```
+1. USDA NRCS for providing the SNOTEL data
+2. [M3Works](https://m3works.io/) for their [metloom](https://metloom.readthedocs.io/en/latest/usage.html#snotel) package, which we used to download the SNOTEL data.
+3. Maine Geological Survey and the United States Geological Survey for providing the [Maine Snow Survey data](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
+4. The creators of the [srtm.py Python package](https://github.com/tkrajina/srtm.py?tab=readme-ov-file) for their open-source tool, which we used to obtain the SRTM elevation data.
 
----
+</details>
 
-## 📜 License
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+<details open> 
+  <summary><h2>Contact</summary>
 
----
-
-## 🤝 Contributing
-Contributions are welcome! Please follow these steps:
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-name`).
-3. Commit your changes (`git commit -m 'Add new feature'`).
-4. Push to your branch (`git push origin feature-name`).
-5. Open a pull request.
-
----
-
-## 📧 Contact
 For any questions or issues, please open an **issue** or reach out to **ibrahimolalekana@u.boisestate.edu**.
 
----
-
-🚀 Happy coding! 🎉
-
-
+</details>

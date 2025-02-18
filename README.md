@@ -44,31 +44,32 @@ The dataset used in this study comes from two sources:
 
 This project uses *Conda* for environment management.
 
-1. Install Conda
+### 1. Install Conda
+
 If you don’t have Conda installed, download **[Anaconda or MiniConda](https://www.anaconda.com/download/success)**. See [Installing Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to know which installer is right for you.
 
-2. Create and Activate the Conda Environment
+### 2. Create and Activate the Conda Environment
 
 ```bash
 conda env create --file environment.yml
 conda activate ml_density_env 
 ```
 
-3. Create and Navigate to Directory
+### 3. Create and Navigate to Directory
 
 ```bash
 mkdir ml_density
 cd ml_density
 ```
 
-4. Clone This Repository
+### 4. Clone This Repository
 
 ```bash
 git clone https://github.com/cryogars/density-models.git
 cd density-models
 ```
 
-5. Verify Installation
+### 5. Verify Installation
 
 Ensure everything is set up correctly:
 ```bash
@@ -76,7 +77,7 @@ python --version  # Should return 3.11.5
 conda list  # Displays installed packages
 ```
 
-6. Install Source Code
+### 6. Install Source Code
 
 ```bash
 pip install .

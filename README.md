@@ -32,7 +32,7 @@ This study proposes a machine learning model for estimating snowpack bulk densit
 
 <ul>
 
-<li>Source code for our paper (*doi* will be shared after paper acceptance).</li>
+<li>Source code for our paper (<em>DOI</em> will be shared after paper acceptance).</li>
 
 <li>A reproducible Conda environment.</li>
 

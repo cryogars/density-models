@@ -16,6 +16,12 @@
 
 -   TODO -->
 
+<h1 align="center">
+Snowpack Bulk Density Estimation using Machine Learning</h1>
+<p align="center">This is the codebase for A Machine Learning Model for Estimating Snow Water Equivalent from Snow Depth and Seasonal Snow Climate Class.
+</p>
+
+<!-- <p align="center">This is the codebase for <a href ="https://amzn.to/43PuIkQ"> Generative AI with LangChain, 2024 Edition</a>, published by Packt. -->
 
 # 📌 Density Models
 

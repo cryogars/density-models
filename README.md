@@ -36,20 +36,8 @@ Snow Density Estimation using Machine Learning</h1>
 
 <li>Instructions for setup and usage.</li>
 
-<!-- <li>Understand transformer models and attention mechanisms</li>
-
-<li>Automate data analysis and visualization using pandas and Python</li>
-
-<li>Grasp prompt engineering to improve performance</li>
-
-<li>Fine-tune LLMs and get to know the tools to unleash their power</li>
-
-<li>Deploy LLMs as a service with LangChain and apply evaluation strategies</li>
-
-<li>Privately interact with documents using open-source LLMs to prevent data leaks</li> -->
-
 </ul>
-
+</details>
 
 
 ## 📖 Overview

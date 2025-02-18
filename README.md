@@ -25,7 +25,6 @@ Snow Density Estimation using Machine Learning</h1>
 
 <!-- # 📌 Density Models -->
 
-</details>
 <details open> 
   <summary><h2>Overview</summary>
 <ul>

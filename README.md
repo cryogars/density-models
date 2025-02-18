@@ -17,7 +17,7 @@
 -   TODO -->
 
 <h1 align="center">
-Snowpack Bulk Density Estimation using Machine Learning</h1>
+Snow Density Estimation using Machine Learning</h1>
 <p align="center">This is the codebase for A Machine Learning Model for Estimating Snow Water Equivalent from Snow Depth and Seasonal Snow Climate Class.
 </p>
 

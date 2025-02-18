@@ -41,15 +41,23 @@ This study proposes a machine learning model for estimating snowpack bulk densit
 </ul>
 </details>
 
+<details open> 
+  <summary><h2>Dataset</summary>
 
-## 📖 Overview
+The dataset used in this study comes from two sources:
+
+- SNOTEL Dataset - was downloaded using [metloom](https://metloom.readthedocs.io/en/latest/usage.html#snotel).
+- [Global Seasonal-Snow Classification on NSIDC](https://nsidc.org/data/nsidc-0768/versions/1). For this work, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
+</details>
+
+<!-- ## 📖 Overview
 
 A machine learning for snowpack bulk density ($\rho_s$) estimation project.
 
 This repository includes:
 - Source code for our paper (link will be shared after paper acceptance).
 - A reproducible Conda environment.
-- Instructions for setup and usage.
+- Instructions for setup and usage. -->
 
 ---
 

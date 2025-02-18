@@ -1,1 +1,5 @@
 rasterio==1.4.3
+pandas==2.2.3
+xarray==2025.1.2
+pyproj==3.7.1
+numpy==2.2.3

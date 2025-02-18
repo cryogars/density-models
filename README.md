@@ -55,10 +55,18 @@ The dataset used in this study comes from two sources:
 
 | Software used | Version  | Hardware specifications  | OS required |
 |:---:  |:---:  |:---:  |:---:  |
-| Python | 3.11.5 | This code should work on any recent PC/Laptop | Linux (any), MacOS, Windows|
+| Python | 3.11.5 | The codes in this repository should work on any recent PC/Laptop | Linux (any), MacOS, Windows|
 </details>
 
-## 💻 Software & Hardware List
+
+<details open> 
+  <summary><h2>Installation and Setup</summary>
+
+This project uses *Conda* for environment management.
+
+### 1️⃣ Install Conda
+If you don’t have Conda installed, download **[Ana or Mini Conda](https://www.anaconda.com/download/success)**. See [Installing Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to see which installer is right for you.
+</details>
 
 ## ⚙️ Installation and Setup
 

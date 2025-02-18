@@ -47,26 +47,16 @@ This study proposes a machine learning model for estimating snowpack bulk densit
 The dataset used in this study comes from two sources:
 
 - SNOTEL Dataset - was downloaded using [metloom](https://metloom.readthedocs.io/en/latest/usage.html#snotel).
-- [Global Seasonal-Snow Classification on NSIDC](https://nsidc.org/data/nsidc-0768/versions/1). For this work, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
+- [Global Seasonal-Snow Classification on NSIDC](https://nsidc.org/data/nsidc-0768/versions/1). For this project, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
 </details>
 
-<!-- ## 📖 Overview
+<details open> 
+  <summary><h2>Software & Hardware List</summary>
 
-A machine learning for snowpack bulk density ($\rho_s$) estimation project.
-
-This repository includes:
-- Source code for our paper (link will be shared after paper acceptance).
-- A reproducible Conda environment.
-- Instructions for setup and usage. -->
-
----
-
-## 📊 Dataset
-
-The dataset used in this project are:
-
-- SNOTEL Dataset - was downloaded using [metloom](https://metloom.readthedocs.io/en/latest/usage.html#snotel).
-- [Global Seasonal-Snow Classification on NSIDC](https://nsidc.org/data/nsidc-0768/versions/1). For this work, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`. 
+| Software used | Version  | Hardware specifications  | OS required |
+|:---:  |:---:  |:---:  |:---:  |
+| Python | 3.11.5 | This code should work on any recent PC/Laptop | Linux (any), MacOS, Windows|
+</details>
 
 ## 💻 Software & Hardware List
 

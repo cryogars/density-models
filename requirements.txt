@@ -1,4 +1,4 @@
-rasterio==1.4.3
+rioxarray==0.18.2
 pandas==2.2.3
 xarray==2025.1.2
 pyproj==3.7.1

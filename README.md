@@ -47,24 +47,24 @@ This project uses *Conda* for environment management.
 ### 1️⃣ Install Conda
 If you don’t have Conda installed, download **[Anaconda or MiniConda](https://www.anaconda.com/download/success)**. See [Installing Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to know which installer is right for you.
 
-### 2️⃣ Create and Navigaate to Directory
+### 2️⃣ Create and Activate the Conda Environment
+Run the following commands to create a reproducible Conda environment:
+```bash
+conda env create --file environment.yml
+conda activate ml_density_env 
+```
+
+### 3️⃣ Create and Navigaate to Directory
 
 ```bash
 mkdir ml_density
 cd ml_density
 ```
 
-### 3️⃣ Clone This Repository
+### 4️⃣ Clone This Repository
 ```bash
-git https://github.com/cryogars/density-models.git
+git clone https://github.com/cryogars/density-models.git
 cd density-models
-```
-
-### 4️⃣ Create and Activate the Conda Environment
-Run the following commands to create a reproducible Conda environment:
-```bash
-conda env create --file environment.yml
-conda activate ml_density_env 
 ```
 
 ### 5️⃣ Verify Installation
@@ -74,7 +74,7 @@ python --version  # Should return 3.11.5
 conda list  # Displays installed packages
 ```
 
-### 5️⃣ Install Source Code
+### 6️⃣ Install Source Code
 
 ```bash
 pip install .
@@ -90,7 +90,7 @@ pip install -e .
 <details open> 
   <summary><h2>Directory Setup</summary>
 
-Create the data folder and dowload:
+Create the data folder and download:
 
 1. SNOTEL Data: [link](https://drive.google.com/file/d/1tcMnNPq_SYLGoLEY-FeBJVaJf1qqtntZ/view?usp=sharing). 
 2. Global Seasonal Snow Classification on NSIDC: [NSIDC link](https://nsidc.org/data/nsidc-0768/versions/1). For this project, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
@@ -120,6 +120,7 @@ The authors would like to thank:
 2. [M3Works](https://m3works.io/) for their [metloom](https://metloom.readthedocs.io/en/latest/usage.html#snotel) package, which we used to download the SNOTEL data.
 3. Maine Geological Survey and the United States Geological Survey for providing the [Maine Snow Survey data](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
 4. The creators of the [srtm.py Python package](https://github.com/tkrajina/srtm.py?tab=readme-ov-file) for their open-source tool, which we used to obtain the SRTM elevation data.
+5. U.S. Army CRREL for the funding (BAA W913E520C0017).
 
 </details>
 

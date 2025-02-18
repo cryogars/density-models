@@ -14,4 +14,3 @@ dependencies:
   # - black  # Code formatter
   # - isort  # Sorts imports
   # - pre-commit  # Git hooks for enforcing code style
-

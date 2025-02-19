@@ -268,8 +268,8 @@ def main():
     subparsers = parser.add_subparsers(dest='task', help='Choose the task of interest.')
 
     # Create the parser for the fah_to_cel task
-    parser_fah_to_cel = subparsers.add_parser('fah_to_cel', help='Farenheit to Celcius')
-    parser_fah_to_cel.add_argument('--fah_val', type=float, required=True, help='Temperature in farenheit.')
+    parser_fah_to_cel = subparsers.add_parser('fah_to_cel', help='Fahrenheit to Celcius')
+    parser_fah_to_cel.add_argument('--fah_val', type=float, required=True, help='Temperature in fahrenheit.')
 
 
     # create the parser for the feet_to_m task

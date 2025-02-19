@@ -1,16 +1,6 @@
 name: ml_density_env 
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  - python=3.11.5  # Define the Python version
-  # - bump-my-version=0.30.0
-  # - numpy
-  # - pandas
-  # - scipy
+  - python=3.11.5  
   - jupyter
-  # - cookiecutter  # ✅ Install Cookiecutter using Conda
-  # - pytest  # For testing
-  # - black  # Code formatter
-  # - isort  # Sorts imports
-  # - pre-commit  # Git hooks for enforcing code style

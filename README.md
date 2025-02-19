@@ -14,8 +14,6 @@ This study proposes a machine learning model for estimating snowpack bulk densit
 
 <li>Source code for our paper (<em>DOI</em> will be shared after paper acceptance).</li>
 
-<li>A reproducible Conda environment.</li>
-
 <li>Instructions for setup and usage.</li>
 
 </ul>
@@ -42,7 +40,7 @@ The dataset used in this study comes from two sources:
 <details open> 
   <summary><h2>Installation and Setup</summary>
 
-This project uses *Conda* for environment management.
+This project uses *Conda* for environment management. However, you can use any environment management tool of your choice. For example, you can manage Python versions with [pyenv](https://github.com/pyenv/pyenv) and create a virtual environment using [venv](https://docs.python.org/3/library/venv.html). Go to **Step 3** if you wish not to use *Conda*.
 
 ### 1. Install Conda
 

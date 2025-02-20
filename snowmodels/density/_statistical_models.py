@@ -19,8 +19,8 @@ import argparse
 import numpy as np
 import pandas as pd
 from ..utils import validate_DOY
-from ..utils.jonas_model_constants import jonas_model_params, validate_month, MONTH_MAPPING
-from ..utils.sturm_model_constants import sturm_model_params, validate_snow_class, validate_SturmDOY, VALID_SNOW_CLASSES
+from ..utils._jonas_model_constants import jonas_model_params, validate_month, MONTH_MAPPING
+from ..utils._sturm_model_constants import sturm_model_params, validate_snow_class, validate_SturmDOY, VALID_SNOW_CLASSES
 
 
 

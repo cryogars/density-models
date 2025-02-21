@@ -5,4 +5,5 @@ pyproj==3.7.1
 numpy==2.2.3
 scikit-learn==1.6.1
 pyarrow==19.0.1
-mlflow==2.20.2
+optuna==4.2.1
+optuna-dashboard==0.17.0

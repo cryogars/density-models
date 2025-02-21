@@ -5,10 +5,7 @@ from typing import Dict, Union
 from ._conversions import ConvertData, OutOfBoundsError
 
 ## Machine Learning Libraries
-import category_encoders as ce
 from sklearn import set_config
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import root_mean_squared_error, r2_score
 

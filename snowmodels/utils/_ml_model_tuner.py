@@ -3,13 +3,14 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 import lightgbm as lgb
+from sklearn import set_config
 from typing import List, Tuple
 import category_encoders as ce
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import r2_score, root_mean_squared_error
 from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
 
-
+set_config(transform_output="pandas")
 warnings.filterwarnings('ignore')
 
 class DefaultTuner:

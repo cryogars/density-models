@@ -22,10 +22,11 @@ This study proposes a machine learning model for estimating snowpack bulk densit
 <details open> 
   <summary><h2>Dataset</summary>
 
-The dataset used in this study comes from two sources:
+The dataset used in this study comes from thre sources:
 
 - SNOTEL Dataset - was downloaded using [metloom](https://metloom.readthedocs.io/en/latest/usage.html#snotel).
 - [Global Seasonal Snow Classification](https://nsidc.org/data/nsidc-0768/versions/1).
+- [Maine Snow Survey Data](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
 </details>
 
 <details open> 
@@ -95,6 +96,7 @@ Create the data folder and download:
 
 1. SNOTEL Data: [link](https://drive.google.com/file/d/1tcMnNPq_SYLGoLEY-FeBJVaJf1qqtntZ/view?usp=sharing). 
 2. Global Seasonal Snow Classification on NSIDC: [NSIDC link](https://nsidc.org/data/nsidc-0768/versions/1). For this project, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
+3. Main Snow Survey Data: [link](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
 
 </details>
 

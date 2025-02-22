@@ -1,3 +1,4 @@
+import optuna
 import warnings
 import numpy as np
 import pandas as pd
@@ -170,11 +171,11 @@ class DefaultTuner:
             
             # Train sklearn models
             et_results = self.train_sklearn_model(
-                ExtraTreesRegressor(random_state=self.random_state),
+                ExtraTreesRegressor(random_state=self.random_state, n_jobs=-1),
                 X_train, X_val, y_train, y_val
             )
             rf_results = self.train_sklearn_model(
-                RandomForestRegressor(random_state=self.random_state),
+                RandomForestRegressor(random_state=self.random_state, n_jobs=-1),
                 X_train, X_val, y_train, y_val
             )
             
@@ -201,3 +202,220 @@ class DefaultTuner:
             print(f"Best iteration: {best_model[1]['best_iteration']}")
         
         return baseline_results
+    
+class ComprehensiveOptimizer(DefaultTuner):
+    def __init__(
+        self,
+        X_train: pd.DataFrame,
+        X_val: pd.DataFrame,
+        y_train: pd.Series,
+        y_val: pd.Series,
+        model_name: str,  # 'random_forest', 'xgboost', 'lightgbm', or 'extra_trees'
+        cat_col: str = 'Snow_Class',
+        num_cols: List[str] = ['Elevation', 'Snow_Depth', 'DOWY'],
+        random_state: int = 42
+    ):
+        # Initialize parent class
+        super().__init__(X_train, X_val, y_train, y_val, cat_col, num_cols, random_state)
+        
+        # Additional initialization
+        self.model_name = model_name.lower()
+        if self.model_name not in ['random_forest', 'xgboost', 'lightgbm', 'extra_trees']:
+            raise ValueError("model_name must be one of: 'random_forest', 'xgboost', 'lightgbm', 'extra_trees'")
+
+    def optimize_random_forest(self, trial: optuna.Trial, X_train, X_val, y_train, y_val) -> float:
+        """Optimize Random Forest hyperparameters"""
+        params = {
+            'n_estimators': trial.suggest_int('n_estimators', 50, 500),
+            'max_depth': trial.suggest_int('max_depth', 2, 25),
+            'min_samples_split': trial.suggest_int('min_samples_split', 2, 30),
+            'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 20),
+            'random_state': self.random_state,
+            'n_jobs': -1
+        }
+        
+        model = RandomForestRegressor(**params)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_val)
+        score = r2_score(y_true=y_val, y_pred=y_pred)
+        
+        # Add RMSE to trial info
+        rmse = root_mean_squared_error(y_true=y_val, y_pred=y_pred)
+        trial.set_user_attr('rmse', rmse)
+        
+        return score
+
+    def optimize_extra_trees(self, trial: optuna.Trial, X_train, X_val, y_train, y_val) -> float:
+        """Optimize Extra Trees hyperparameters"""
+        params = {
+            'n_estimators': trial.suggest_int('n_estimators', 100, 1500),
+            'max_depth': trial.suggest_int('max_depth', 5, 50),
+            'min_samples_split': trial.suggest_int('min_samples_split', 2, 30),
+            'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 15),
+            'max_features': trial.suggest_float('max_features', 0.3, 1.0),
+            'bootstrap': trial.suggest_categorical('bootstrap', [True, False]),
+            'random_state': self.random_state
+        }
+        
+        model = ExtraTreesRegressor(**params)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_val)
+        score = r2_score(y_val, y_pred)
+        
+        # Add RMSE to trial info
+        rmse = root_mean_squared_error(y_val, y_pred)
+        trial.set_user_attr('rmse', rmse)
+        
+        return score
+
+    def optimize_xgboost(self, trial: optuna.Trial, X_train, X_val, y_train, y_val) -> float:
+        """Optimize XGBoost hyperparameters"""
+        params = {
+            'objective': 'reg:squarederror',
+            'n_estimators': trial.suggest_int('n_estimators', 100, 1500),
+            'max_depth': trial.suggest_int('max_depth', 3, 20),
+            'learning_rate': trial.suggest_float('learning_rate', 1e-3, 0.1, log=True),
+            'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
+            'subsample': trial.suggest_float('subsample', 0.5, 1.0),
+            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
+            'gamma': trial.suggest_float('gamma', 1e-8, 1.0, log=True),
+            'random_state': self.random_state
+        }
+        
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dval = xgb.DMatrix(X_val, label=y_val)
+        
+        early_stopping = xgb.callback.EarlyStopping(
+            rounds=50,
+            metric_name='rmse',
+            data_name='valid',
+            maximize=False,
+            save_best=True
+        )
+        
+        # Train with early stopping
+        model = xgb.train(
+            params,
+            dtrain,
+            evals=[(dtrain, 'train'), (dval, 'valid')],
+            num_boost_round=params['n_estimators'],
+            callbacks=[early_stopping],
+            verbose_eval=False
+        )
+        
+        # Get predictions using best model
+        y_pred = model[: model.best_iteration].predict(dval)
+        score = r2_score(y_val, y_pred)
+        
+        # Add metrics to trial info
+        rmse = root_mean_squared_error(y_val, y_pred)
+        trial.set_user_attr('rmse', rmse)
+        trial.set_user_attr('best_iteration', model.best_iteration)
+        
+        return score
+
+    def optimize_lightgbm(self, trial: optuna.Trial, X_train, X_val, y_train, y_val) -> float:
+        """Optimize LightGBM hyperparameters"""
+        params = {
+            'objective': 'regression',
+            'metric': 'rmse',
+            'random_state': self.random_state,
+            'verbosity': -1,
+            'n_estimators': trial.suggest_int('n_estimators', 100, 1500),
+            'max_depth': trial.suggest_int('max_depth', 3, 20),
+            'learning_rate': trial.suggest_float('learning_rate', 1e-3, 0.1, log=True),
+            'num_leaves': trial.suggest_int('num_leaves', 20, 200),
+            'min_child_samples': trial.suggest_int('min_child_samples', 1, 50),
+            'subsample': trial.suggest_float('subsample', 0.5, 1.0),
+            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0)
+        }
+        
+        train_data = lgb.Dataset(X_train, label=y_train)
+        val_data = lgb.Dataset(X_val, label=y_val, reference=train_data)
+        
+        callbacks = [lgb.early_stopping(stopping_rounds=50)]
+        
+        # Train with early stopping
+        model = lgb.train(
+            params,
+            train_data,
+            valid_sets=[train_data, val_data],
+            callbacks=callbacks
+        )
+        
+        # Get predictions using best iteration
+        y_pred = model.predict(X_val, num_iteration=model.best_iteration)
+        score = r2_score(y_val, y_pred)
+        
+        # Add metrics to trial info
+        rmse = root_mean_squared_error(y_val, y_pred)
+        trial.set_user_attr('rmse', rmse)
+        trial.set_user_attr('best_iteration', model.best_iteration)
+        
+        return score
+
+    def optimize(self, n_trials: int = 100, storage: str = "sqlite:///optuna.db"):
+        """Run optimization for all encoders"""
+        encoders = ['onehot', 'catboost', 'target']
+        all_results = {}
+        
+        # Select optimization function based on model name
+        if self.model_name == 'random_forest':
+            optimize_func = self.optimize_random_forest
+        elif self.model_name == 'extra_trees':
+            optimize_func = self.optimize_extra_trees
+        elif self.model_name == 'xgboost':
+            optimize_func = self.optimize_xgboost
+        else:  # lightgbm
+            optimize_func = self.optimize_lightgbm
+        
+        # Run optimization for each encoder
+        for encoder_name in encoders:
+            print(f"\nOptimizing {self.model_name} with {encoder_name} encoder...")
+            
+            # Prepare data for this encoder
+            X_train, X_val, y_train, y_val = self.prepare_data(encoder_name)
+            
+            # Create study
+            study = optuna.create_study(
+                study_name=f"{self.model_name}_{encoder_name}",
+                storage=storage,
+                direction="maximize",
+                load_if_exists=True
+            )
+            
+            # Create objective function closure
+            objective = lambda trial: optimize_func(trial, X_train, X_val, y_train, y_val)
+            
+            # Run optimization
+            study.optimize(objective, n_trials=n_trials)
+            
+            # Store results
+            all_results[f"{self.model_name}_{encoder_name}"] = {
+                'best_params': study.best_trial.params,
+                'best_score': study.best_trial.value,
+                'best_rmse': study.best_trial.user_attrs['rmse'],
+                'study': study
+            }
+            
+            if self.model_name in ['xgboost', 'lightgbm']:
+                all_results[f"{self.model_name}_{encoder_name}"]["best_iteration"] = \
+                    study.best_trial.user_attrs['best_iteration']
+            
+            # Print current results
+            print(f"\nResults for {self.model_name} with {encoder_name} encoder:")
+            print(f"Best R² score: {study.best_trial.value:.4f}")
+            print(f"Best RMSE: {study.best_trial.user_attrs['rmse']:.4f}")
+            if self.model_name in ['xgboost', 'lightgbm']:
+                print(f"Best iteration: {study.best_trial.user_attrs['best_iteration']}")
+            print("\nBest parameters:")
+            for param, value in study.best_trial.params.items():
+                print(f"  {param}: {value}")
+        
+        # Find overall best configuration
+        best_config = max(all_results.items(), key=lambda x: x[1]['best_score'])
+        print(f"\nOverall best configuration: {best_config[0]}")
+        print(f"Best R² score: {best_config[1]['best_score']:.4f}")
+        print(f"Best RMSE: {best_config[1]['best_rmse']:.4f}")
+        
+        return all_results

@@ -299,7 +299,6 @@ class ComprehensiveOptimizer(DefaultTuner):
         """Optimize XGBoost hyperparameters"""
         params = {
             'objective': 'reg:squarederror',
-            'n_estimators': trial.suggest_int('n_estimators', 100, 1500),
             'max_depth': trial.suggest_int('max_depth', 2, 25),
             'learning_rate': trial.suggest_float('learning_rate', 1e-4, 0.5, log=True),
             'min_child_weight': trial.suggest_float('min_child_weight', 1e-3, 1e2),
@@ -328,7 +327,7 @@ class ComprehensiveOptimizer(DefaultTuner):
             params,
             dtrain,
             evals=[(dtrain, 'train'), (dval, 'valid')],
-            num_boost_round=params['n_estimators'],
+            num_boost_round=1500,
             callbacks=[early_stopping],
             verbose_eval=False
         )
@@ -352,7 +351,6 @@ class ComprehensiveOptimizer(DefaultTuner):
             'metric': 'rmse',
             'random_state': self.random_state,
             'verbosity': -1,
-            'n_estimators': trial.suggest_int('n_estimators', 100, 1500),
             'max_depth': trial.suggest_int('max_depth', 2, 25),
             'learning_rate': trial.suggest_float('learning_rate', 1e-4, 0.5, log=True),
             'num_leaves': trial.suggest_int('num_leaves', 20, 200),
@@ -372,7 +370,8 @@ class ComprehensiveOptimizer(DefaultTuner):
             params,
             train_data,
             valid_sets=[train_data, val_data],
-            callbacks=callbacks
+            callbacks=callbacks,
+            num_boost_round=1500
         )
         
         # Get predictions using best iteration

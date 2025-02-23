@@ -423,7 +423,7 @@ class ComprehensiveOptimizer(DefaultTuner):
             objective = lambda trial: optimize_func(trial, X_train, X_val, y_train, y_val)
             
             # Run optimization
-            study.optimize(objective, n_trials=n_trials, n_jobs=-1)
+            study.optimize(objective, n_trials=n_trials) # n_jobs=-1
             
             # Store results
             all_results[f"{self.model_name}_{encoder_name}"] = {
@@ -459,3 +459,252 @@ class ComprehensiveOptimizer(DefaultTuner):
         self.logger.info(f"Best R² score: {best_config[1]['best_r2']:.4f}")
         
         return all_results
+
+
+class ClimateOptimizer(DefaultTuner):
+    def __init__(
+        self,
+        X_train: pd.DataFrame,
+        X_val: pd.DataFrame,
+        y_train: pd.Series,
+        y_val: pd.Series,
+        model_name: str,
+        cat_col: str = 'Snow_Class',
+        num_cols: List[str] = ['Elevation', 'Snow_Depth', 'DOWY',
+                              'PRECIPITATION_lag_14d', 'TAVG_lag_14d'],
+        random_state: int = 42,
+        log_file: str = None
+    ):
+        # Initialize parent class
+        super().__init__(X_train, X_val, y_train, y_val, cat_col, num_cols, random_state)
+        
+        # Additional initialization
+        self.model_name = model_name.lower()
+        if self.model_name not in ['random_forest', 'xgboost', 'lightgbm', 'extra_trees']:
+            raise ValueError("model_name must be one of: 'random_forest', 'xgboost', 'lightgbm', 'extra_trees'")
+        
+        # Setup logging
+        if log_file is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_file = f"climate_optimization_{self.model_name}_{timestamp}.log"
+        
+        # Configure logging
+        self.logger = logging.getLogger(f"climate_optimizer_{self.model_name}")
+        self.logger.setLevel(logging.INFO)
+        
+        # File handler for detailed logging
+        fh = logging.FileHandler(log_file)
+        fh.setLevel(logging.INFO)
+        fh_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        fh.setFormatter(fh_formatter)
+        self.logger.addHandler(fh)
+        
+        # Console handler for summary info
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        ch_formatter = logging.Formatter('%(message)s')
+        ch.setFormatter(ch_formatter)
+        self.logger.addHandler(ch)
+
+    def optimize_random_forest(self, trial: optuna.Trial, X_train, X_val, y_train, y_val) -> float:
+        """Optimize Random Forest hyperparameters"""
+
+        params = {
+            'n_estimators': trial.suggest_int('n_estimators', 50, 500),
+            'max_depth': trial.suggest_int('max_depth', 2, 25),
+            'min_samples_split': trial.suggest_int('min_samples_split', 2, 30),
+            'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 20),
+            'random_state': self.random_state,
+            'n_jobs': -1
+        }
+        
+        model = RandomForestRegressor(**params)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_val)
+        rmse = root_mean_squared_error(y_true=y_val, y_pred=y_pred)
+        
+        # Add R² to trial info
+        score = r2_score(y_true=y_val, y_pred=y_pred)
+        trial.set_user_attr('r2', score)
+        
+        return rmse  # Return RMSE for minimization
+
+    def optimize_extra_trees(self, trial: optuna.Trial, X_train, X_val, y_train, y_val) -> float:
+        """Optimize Extra Trees hyperparameters"""
+        params = {
+            'n_estimators': trial.suggest_int('n_estimators', 50, 500),
+            'max_depth': trial.suggest_int('max_depth', 2, 25),
+            'min_samples_split': trial.suggest_int('min_samples_split', 2, 30),
+            'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 20),
+            'random_state': self.random_state,
+            'n_jobs': -1
+        }
+        
+        model = ExtraTreesRegressor(**params)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_val)
+        rmse = root_mean_squared_error(y_true=y_val, y_pred=y_pred)
+        
+        # Add R² to trial info
+        score = r2_score(y_true=y_val, y_pred=y_pred)
+        trial.set_user_attr('r2', score)
+        
+        return rmse  # Return RMSE for minimization
+
+    def optimize_xgboost(self, trial: optuna.Trial, X_train, X_val, y_train, y_val) -> float:
+        """Optimize XGBoost hyperparameters with fixed n_estimators and early stopping"""
+
+        params = {
+            'objective': 'reg:squarederror',
+            'max_depth': trial.suggest_int('max_depth', 2, 25),
+            'learning_rate': trial.suggest_float('learning_rate', 1e-4, 0.5, log=True),
+            'min_child_weight': trial.suggest_float('min_child_weight', 1e-3, 1e2),
+            'max_bin': trial.suggest_int('max_bin', 255, 6000),
+            'gamma': trial.suggest_float('gamma', 1e-8, 1.0, log=True),
+            'device': 'cuda',
+            'tree_method': 'hist',
+            'subsample': 1,
+            'sampling_method': 'gradient_based',
+            'random_state': self.random_state
+        }
+        
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dval = xgb.DMatrix(X_val, label=y_val)
+        
+        early_stopping = xgb.callback.EarlyStopping(
+            rounds=50,
+            metric_name='rmse',
+            data_name='valid',
+            maximize=False,
+            save_best=True
+        )
+        
+        # Train with early stopping and fixed n_estimators
+        model = xgb.train(
+            params,
+            dtrain,
+            num_boost_round=1500,  # Fixed large number of trees
+            evals=[(dtrain, 'train'), (dval, 'valid')],
+            callbacks=[early_stopping],
+            verbose_eval=False
+        )
+        
+        # Get predictions using best model
+        y_pred = model.predict(dval)
+        rmse = root_mean_squared_error(y_true=y_val, y_pred=y_pred)
+        
+        # Add metrics to trial info
+        score = r2_score(y_true=y_val, y_pred=y_pred)
+        trial.set_user_attr('r2', score)
+        trial.set_user_attr('best_iteration', model.best_iteration)
+        
+        return rmse  # Return RMSE for minimization
+
+    def optimize_lightgbm(self, trial: optuna.Trial, X_train, X_val, y_train, y_val) -> float:
+        """Optimize LightGBM hyperparameters with fixed n_estimators and early stopping"""
+
+        params = {
+            'objective': 'regression',
+            'metric': 'rmse',
+            'random_state': self.random_state,
+            'verbosity': -1,
+            'max_depth': trial.suggest_int('max_depth', 2, 25),
+            'learning_rate': trial.suggest_float('learning_rate', 1e-4, 0.5, log=True),
+            'num_leaves': trial.suggest_int('num_leaves', 20, 200),
+            'min_child_weight': trial.suggest_float('min_child_weight', 1e-3, 1e2),
+            'min_child_samples': trial.suggest_int('min_child_samples', 1, 50),
+            'max_bin': trial.suggest_int('max_bin', 255, 6000),
+            'bagging_fraction': 1,
+        }
+        
+        
+        train_data = lgb.Dataset(X_train, label=y_train)
+        val_data = lgb.Dataset(X_val, label=y_val, reference=train_data)
+        
+        callbacks = [lgb.early_stopping(stopping_rounds=50)]
+        
+        # Train with early stopping and fixed n_estimators
+        model = lgb.train(
+            params,
+            train_data,
+            num_boost_round=1500,  # Fixed large number of trees
+            valid_sets=[train_data, val_data],
+            callbacks=callbacks
+        )
+        
+        # Get predictions using best iteration
+        y_pred = model.predict(X_val, num_iteration=model.best_iteration)
+        rmse = root_mean_squared_error(y_true=y_val, y_pred=y_pred)
+        
+        # Add metrics to trial info
+        score = r2_score(y_true=y_val, y_pred=y_pred)
+        trial.set_user_attr('r2', score)
+        trial.set_user_attr('best_iteration', model.best_iteration)
+        
+        return rmse  # Return RMSE for minimization
+
+    def optimize(self, n_trials: int = 100, storage: str = "sqlite:///optuna.db"):
+        """Run optimization using only target encoding"""
+        self.logger.info(f"\nStarting climate model optimization for {self.model_name}")
+        self.logger.info(f"Number of trials: {n_trials}")
+        self.logger.info(f"Storage: {storage}")
+        
+        # Select optimization function based on model name
+        if self.model_name == 'random_forest':
+            optimize_func = self.optimize_random_forest
+        elif self.model_name == 'extra_trees':
+            optimize_func = self.optimize_extra_trees
+        elif self.model_name == 'xgboost':
+            optimize_func = self.optimize_xgboost
+        else:  # lightgbm
+            optimize_func = self.optimize_lightgbm
+        
+        # Prepare data with target encoding only
+        X_train, X_val, y_train, y_val = self.prepare_data('target')
+        
+        # Create study with pruner to reduce output
+        pruner = optuna.pruners.MedianPruner(
+            n_startup_trials=5,
+            n_warmup_steps=20,
+            interval_steps=10
+        )
+        
+        study = optuna.create_study(
+            study_name=f"{self.model_name}_climate",
+            storage=storage,
+            direction="minimize",
+            load_if_exists=True,
+            pruner=pruner
+        )
+        
+        # Create objective function closure
+        objective = lambda trial: optimize_func(trial, X_train, X_val, y_train, y_val)
+        
+        # Run optimization with minimal output
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+        study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
+        
+        # Store results
+        results = {
+            'best_params': study.best_trial.params,
+            'best_rmse': study.best_trial.value,
+            'best_r2': study.best_trial.user_attrs['r2'],
+            'study': study
+        }
+        
+        if self.model_name in ['xgboost', 'lightgbm']:
+            results['best_iteration'] = study.best_trial.user_attrs['best_iteration']
+        
+        # Print summary to console
+        self.logger.info("\n" + "="*50)
+        self.logger.info("Climate Model Optimization Summary")
+        self.logger.info("="*50)
+        self.logger.info(f"Best RMSE: {results['best_rmse']:.4f}")
+        self.logger.info(f"Best R² score: {results['best_r2']:.4f}")
+        if self.model_name in ['xgboost', 'lightgbm']:
+            self.logger.info(f"Best iteration: {results['best_iteration']}")
+        self.logger.info("\nBest parameters:")
+        for param, value in results['best_params'].items():
+            self.logger.info(f"  {param}: {value}")
+        
+        return results

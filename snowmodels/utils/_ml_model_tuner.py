@@ -423,7 +423,7 @@ class ComprehensiveOptimizer(DefaultTuner):
             objective = lambda trial: optimize_func(trial, X_train, X_val, y_train, y_val)
             
             # Run optimization
-            study.optimize(objective, n_trials=n_trials) # n_jobs=-1
+            study.optimize(objective, n_trials=n_trials) # use n_jobs=-1 for LigGBM if you have multiple cores.
             
             # Store results
             all_results[f"{self.model_name}_{encoder_name}"] = {
@@ -682,7 +682,7 @@ class ClimateOptimizer(DefaultTuner):
         
         # Run optimization with minimal output
         optuna.logging.set_verbosity(optuna.logging.WARNING)
-        study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
+        study.optimize(objective, n_trials=n_trials, show_progress_bar=False) # n_jobs=-1
         
         # Store results
         results = {

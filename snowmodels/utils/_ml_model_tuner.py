@@ -1,3 +1,4 @@
+import torch
 import optuna
 import logging
 import warnings
@@ -15,6 +16,9 @@ from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
 
 set_config(transform_output="pandas")
 warnings.filterwarnings('ignore')
+
+xgb_device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 class DefaultTuner:
     def __init__(
@@ -297,6 +301,7 @@ class ComprehensiveOptimizer(DefaultTuner):
 
     def optimize_xgboost(self, trial: optuna.Trial, X_train, X_val, y_train, y_val) -> float:
         """Optimize XGBoost hyperparameters"""
+        print(f"XGBoost will run on {xgb_device}")
         params = {
             'objective': 'reg:squarederror',
             'max_depth': trial.suggest_int('max_depth', 2, 25),
@@ -304,7 +309,7 @@ class ComprehensiveOptimizer(DefaultTuner):
             'min_child_weight': trial.suggest_float('min_child_weight', 1e-3, 1e2),
             'max_bin': trial.suggest_int('max_bin', 255, 6000),
             'gamma': trial.suggest_float('gamma', 1e-8, 1.0, log=True),
-            'device': 'cuda',
+            'device': xgb_device,
             'tree_method': 'hist',
             'subsample': 1,
             'sampling_method': 'gradient_based',
@@ -553,7 +558,7 @@ class ClimateOptimizer(DefaultTuner):
 
     def optimize_xgboost(self, trial: optuna.Trial, X_train, X_val, y_train, y_val) -> float:
         """Optimize XGBoost hyperparameters with fixed n_estimators and early stopping"""
-
+        print(f"XGBoost will run on {xgb_device}")
         params = {
             'objective': 'reg:squarederror',
             'max_depth': trial.suggest_int('max_depth', 2, 25),
@@ -561,7 +566,7 @@ class ClimateOptimizer(DefaultTuner):
             'min_child_weight': trial.suggest_float('min_child_weight', 1e-3, 1e2),
             'max_bin': trial.suggest_int('max_bin', 255, 6000),
             'gamma': trial.suggest_float('gamma', 1e-8, 1.0, log=True),
-            'device': 'cuda',
+            'device': xgb_device,
             'tree_method': 'hist',
             'subsample': 1,
             'sampling_method': 'gradient_based',

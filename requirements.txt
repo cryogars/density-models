@@ -10,3 +10,4 @@ optuna-dashboard==0.17.0
 xgboost==2.1.4
 lightgbm==4.6.0
 torch==2.6.0
+shap==0.46.0

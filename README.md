@@ -104,6 +104,7 @@ Create the data folder and download:
   <summary><h2>Deactivate and/or Remove Environment</summary>
 
 After running the experiments, you can deactivate the conda environment by running the command below:
+
 ```bash
 conda deactivate
 ```

@@ -73,7 +73,7 @@ cd density-models
 Ensure everything is set up correctly:
 ```bash
 python --version  # Should return 3.11.5
-conda list  # Displays installed packages
+pip list  # Displays installed packages
 ```
 
 ### 6. Install Source Code

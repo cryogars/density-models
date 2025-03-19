@@ -12,3 +12,4 @@ lightgbm==4.6.0
 torch==2.6.0
 shap==0.46.0
 srtm.py==0.3.7
+metloom==0.6.3

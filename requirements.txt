@@ -13,3 +13,8 @@ torch==2.6.0
 shap==0.46.0
 srtm.py==0.3.7
 metloom==0.6.3
+contextily==1.6.2
+category_encoders==2.8.0
+geopandas==0.14.4
+seaborn==0.13.2
+matplotlib==3.10.0

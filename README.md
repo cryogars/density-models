@@ -5,7 +5,7 @@ Snow Density Estimation using Machine Learning</h1>
 <p align="center">This is the codebase for "A Machine Learning Model for Estimating Snow Density and Snow Water Equivalent from Snow Depth and Seasonal Snow Climate Classes."
 </p>
 
-<details open> 
+<details close> 
   <summary><h2>Overview</summary>
 
 This study proposes a machine learning model for estimating snowpack bulk density ($\rho_s$) from snow depth ($HS$) and other variables that can be measured or derived from the date and location of $HS$ measurements. This repository contains:

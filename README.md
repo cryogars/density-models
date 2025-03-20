@@ -54,21 +54,30 @@ conda env create --file environment.yml
 conda activate ml_density_env 
 ```
 
-### 3. Create and Navigate to Directory
+### 3. Installation (Non-Conda Users)
+
+For those not using Conda, you can set up a virtual environment with [venv](https://docs.python.org/3/library/venv.html):
+
+```bash
+python -m venv ml_density_env
+source ml_density_env/bin/activate #activate the virtual environment
+```
+
+### 4. Create and Navigate to Directory
 
 ```bash
 mkdir ml_density
 cd ml_density
 ```
 
-### 4. Clone This Repository
+### 5. Clone This Repository
 
 ```bash
 git clone https://github.com/cryogars/density-models.git
 cd density-models
 ```
 
-### 5. Verify Installation
+### 6. Verify Installation
 
 Ensure everything is set up correctly:
 ```bash
@@ -76,7 +85,7 @@ python --version  # Should return 3.11.5
 pip list  # Displays installed packages
 ```
 
-### 6. Install Source Code
+### 7. Install Source Code
 
 ```bash
 pip install .

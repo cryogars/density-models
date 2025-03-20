@@ -19,7 +19,7 @@ This study proposes a machine learning model for estimating snowpack bulk densit
 </ul>
 </details>
 
-<details open> 
+<details close> 
   <summary><h2>Dataset</summary>
 
 The dataset used in this study comes from thre sources:
@@ -29,7 +29,7 @@ The dataset used in this study comes from thre sources:
 - [Maine Snow Survey Data](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
 </details>
 
-<details open> 
+<details close> 
   <summary><h2>Software & Hardware List</summary>
 
 | Software used | Version  | Hardware specifications  | OS required |
@@ -38,7 +38,7 @@ The dataset used in this study comes from thre sources:
 </details>
 
 
-<details open> 
+<details close> 
   <summary><h2>Installation and Setup</summary>
 
 This project uses *Conda* for environment management. However, you can use any environment management tool of your choice. For example, you can manage Python versions with [pyenv](https://github.com/pyenv/pyenv) and create a virtual environment using [venv](https://docs.python.org/3/library/venv.html). Go to **Step 3** if you wish not to use *Conda*.
@@ -100,7 +100,7 @@ pip install -e .
 ```
 </details>
 
-<details open> 
+<details close> 
   <summary><h2>Directory Setup</summary>
 
 Create the data folder and download:
@@ -111,7 +111,7 @@ Create the data folder and download:
 
 </details>
 
-<details open> 
+<details close> 
   <summary><h2>Deactivate and/or Remove Environment</summary>
 
 After running the experiments, you can deactivate the conda environment by running the command below:
@@ -126,7 +126,7 @@ conda env remove --name ml_density_env
 ```
 </details>
 
-<details open> 
+<details close> 
   <summary><h2>Acknowledgments</summary>
 
 The authors would like to thank:
@@ -139,7 +139,7 @@ The authors would like to thank:
 
 </details>
 
-<details open> 
+<details close> 
   <summary><h2>Contact</summary>
 
 For any questions or issues, please open an **issue** or reach out to **ibrahimolalekana@u.boisestate.edu**.

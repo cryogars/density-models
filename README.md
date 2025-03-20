@@ -60,7 +60,7 @@ For those not using Conda, you can set up a virtual environment with [venv](http
 
 ```bash
 python -m venv ml_density_env
-source ml_density_env/bin/activate #activate the virtual environment
+source ml_density_env/bin/activate # activate the virtual environment
 ```
 
 ### 4. Create and Navigate to Directory

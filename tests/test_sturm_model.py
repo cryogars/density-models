@@ -1,6 +1,7 @@
 import pytest
 import datetime
 import numpy as np
+import pandas as pd
 from snowmodels.utils._conversions import OutOfBoundsError
 from snowmodels.utils._sturm_model_constants import (
     sturm_model_params,
@@ -67,13 +68,21 @@ def test_validate_sturm_doy_datetime():
     # Test October 1st (should be -92)
     oct_1 = datetime.datetime(2023, 10, 1)
     assert validate_SturmDOY(oct_1) == -92
+
+    # Test same date in a different year (should give same result)
+    oct_1_different_year = datetime.datetime(2022, 10, 1)
+    assert validate_SturmDOY(oct_1_different_year) == -92
     
     # Test February 1st (should be 32)
     feb_1 = datetime.datetime(2024, 2, 1)
     assert validate_SturmDOY(feb_1) == 32
+
+    # Test same date in a different year (should give same result)
+    feb_1_different_year = datetime.datetime(2022, 2, 1)
+    assert validate_SturmDOY(feb_1_different_year) == 32
     
     # Test November 15th (should be -47)
-    nov_15 = datetime.datetime(2023, 11, 15)
+    nov_15 = datetime.datetime(1996, 11, 15)
     assert validate_SturmDOY(nov_15) == -47
     
     # Test using a string date
@@ -83,12 +92,9 @@ def test_validate_sturm_doy_datetime():
     assert validate_SturmDOY(pd.Timestamp("2024-02-01")) == 32
     
     # Test that July-September returns NaN (excluded months)
-    july_1 = datetime.datetime(2024, 7, 1)
+    july_1 = datetime.datetime(1987, 7, 1)
     assert np.isnan(validate_SturmDOY(july_1))
     
-    # Test same dates in a different year (should give same result)
-    oct_1_different_year = datetime.datetime(2022, 10, 1)
-    assert validate_SturmDOY(oct_1_different_year) == -92
     
-    feb_1_different_year = datetime.datetime(2022, 2, 1)
-    assert validate_SturmDOY(feb_1_different_year) == 32
+    
+    

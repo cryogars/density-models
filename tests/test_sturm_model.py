@@ -20,6 +20,9 @@ def test_sturm_model_params_structure():
 def test_sturm_model_parameters():
     # Test specific values from each snow class
     assert sturm_model_params['alpine']['rho_max'] == 0.5975
+    assert sturm_model_params['alpine']['rho_0'] == 0.2237
+    assert sturm_model_params['alpine']['k1'] == 0.0012
+    assert sturm_model_params['alpine']['k2'] == 0.0038
     assert sturm_model_params['maritime']['rho_0'] == 0.2578
     assert sturm_model_params['prairie']['k1'] == 0.0016
     assert sturm_model_params['tundra']['k2'] == 0.0049

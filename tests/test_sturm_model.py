@@ -28,3 +28,14 @@ def test_sturm_model_parameters():
     assert sturm_model_params['tundra']['k2'] == 0.0049
     assert sturm_model_params['taiga']['rho_max'] == 0.2170
     assert sturm_model_params['taiga']['k1'] == 0.0000
+
+def test_validate_snow_class():
+    # Test valid snow classes
+    for snow_class in VALID_SNOW_CLASSES:
+        assert validate_snow_class(snow_class) == snow_class.lower()
+    
+    # Test case insensitivity
+    assert validate_snow_class('ALPINE') == 'alpine'
+    
+    # Test invalid snow class
+    assert np.isnan(validate_snow_class('invalid_class'))

@@ -53,3 +53,16 @@ def test_validate_month():
         validate_month(0)
     with pytest.raises(ValueError):
         validate_month("abc")
+
+
+def test_month_mapping_completeness():
+    # Ensure MONTH_MAPPING has all the expected keys
+    expected_keys = set([str(i) for i in range(1, 13)] + 
+                       ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 
+                        'jul', 'aug', 'sep', 'oct', 'nov', 'dec'])
+    assert set(MONTH_MAPPING.keys()) == expected_keys
+    
+    # Ensure all values are valid full month names
+    expected_values = set(['january', 'february', 'march', 'april', 'may', 'june', 
+                           'july', 'august', 'september', 'october', 'november', 'december'])
+    assert set(MONTH_MAPPING.values()) == expected_values

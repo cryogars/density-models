@@ -87,7 +87,15 @@ python --version  # Should return 3.11.5
 pip list  # Displays installed packages
 ```
 
-### 7. Install Source Code
+### 7. Run Tests (Optional)
+
+To verify the models are working correctly, you can run the tests:
+
+```bash
+pytest # Run all tests
+```
+
+### 8. Install Source Code
 
 ```bash
 pip install .
@@ -98,6 +106,8 @@ If you wish to modify the source code, install in development mode:
 ```bash
 pip install -e .
 ```
+
+**Note**: This project uses `conda` to manage only manage the Python version and install Jupyter. All package dependencies are installed via `pip`. We found this approach avoids dependency conflicts that sometimes occur when mixing conda-installed and pip-installed packages in the same environment.
 </details>
 
 <details close> 

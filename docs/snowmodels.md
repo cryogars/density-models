@@ -1,4 +1,0 @@
- 
-# snowmodels module
-
-::: snowmodels.snowmodels

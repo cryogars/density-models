@@ -107,7 +107,7 @@ If you wish to modify the source code, install in development mode:
 pip install -e .
 ```
 
-**Note**: This project uses `conda` to manage only manage the Python version and install Jupyter. All package dependencies are installed via `pip`. We found this approach avoids dependency conflicts that sometimes occur when mixing conda-installed and pip-installed packages in the same environment.
+**Note**: This project uses `conda` to only manage the Python version and install Jupyter. All package dependencies are installed via `pip`. This approach makes the installation process more consistent whether you're using conda or another environment management tool (e.g., pyenv + venv). All dependencies are specified in `requirements.txt`
 </details>
 
 <details close> 

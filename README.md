@@ -92,7 +92,7 @@ pip list  # Displays installed packages
 To verify the models are working correctly, you can run the tests:
 
 ```bash
-pytest # Run all tests
+pytest -v # Run all tests
 ```
 
 ### 8. Install Source Code

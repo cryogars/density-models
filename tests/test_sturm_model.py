@@ -1,6 +1,7 @@
 import pytest
+import datetime
 import numpy as np
-
+from snowmodels.utils._conversions import OutOfBoundsError
 from snowmodels.utils._sturm_model_constants import (
     sturm_model_params,
     validate_SturmDOY,
@@ -39,3 +40,55 @@ def test_validate_snow_class():
     
     # Test invalid snow class
     assert np.isnan(validate_snow_class('invalid_class'))
+
+
+def test_validate_sturm_doy_integers():
+    # Test valid integer DOYs
+    assert validate_SturmDOY(-50) == -50
+    assert validate_SturmDOY(0) == 0
+    assert validate_SturmDOY(150) == 150
+    
+    # Test integer-like strings
+    assert validate_SturmDOY("100") == 100
+    
+    # Test out of range DOYs
+    with pytest.raises(OutOfBoundsError):
+        validate_SturmDOY(-100)
+    
+    with pytest.raises(OutOfBoundsError):
+        validate_SturmDOY(200)
+    
+    # Test non-integer DOYs
+    with pytest.raises(ValueError):
+        validate_SturmDOY(10.5)
+
+
+def test_validate_sturm_doy_datetime():
+    # Test October 1st (should be -92)
+    oct_1 = datetime.datetime(2023, 10, 1)
+    assert validate_SturmDOY(oct_1) == -92
+    
+    # Test February 1st (should be 32)
+    feb_1 = datetime.datetime(2024, 2, 1)
+    assert validate_SturmDOY(feb_1) == 32
+    
+    # Test November 15th (should be -47)
+    nov_15 = datetime.datetime(2023, 11, 15)
+    assert validate_SturmDOY(nov_15) == -47
+    
+    # Test using a string date
+    assert validate_SturmDOY("2023-10-01") == -92
+    
+    # Test using a Pandas Timestamp
+    assert validate_SturmDOY(pd.Timestamp("2024-02-01")) == 32
+    
+    # Test that July-September returns NaN (excluded months)
+    july_1 = datetime.datetime(2024, 7, 1)
+    assert np.isnan(validate_SturmDOY(july_1))
+    
+    # Test same dates in a different year (should give same result)
+    oct_1_different_year = datetime.datetime(2022, 10, 1)
+    assert validate_SturmDOY(oct_1_different_year) == -92
+    
+    feb_1_different_year = datetime.datetime(2022, 2, 1)
+    assert validate_SturmDOY(feb_1_different_year) == 32

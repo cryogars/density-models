@@ -28,14 +28,24 @@ def test_jonas_model_specific_values():
     assert jonas_model_params['october']['[1400, 2000)m'] == {"b": None, "a": None}
 
 
-def test_validate_month_numeric():
+def test_validate_month():
     # Test numeric inputs
     assert validate_month('1') == 'january'
     assert validate_month('12') == 'december'
-    assert validate_month('deC') == 'december'
     assert validate_month(12) == 'december'
     assert validate_month(3) == 'march'
+
+    # Test short month names
+    assert validate_month('deC') == 'december'
+    assert validate_month('JaN') == 'january'
     
+    # Test with extra whitespace
+    assert validate_month(' may ') == 'may'
+    
+    # Test invalid month name
+    with pytest.raises(ValueError):
+        validate_month('janu')
+
     # Test invalid numeric inputs
     with pytest.raises(ValueError):
         validate_month('13')

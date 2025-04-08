@@ -57,7 +57,7 @@ replace = '__version__ = "{new_version}"'
 
 
 [project.urls]
-Homepage = "https://github.com/Ibrahim-Ola/density-models"
+Homepage = "https://github.com/cryogars/density-models"
 
 [build-system]
 requires = ["setuptools>=64", "setuptools_scm>=8"]

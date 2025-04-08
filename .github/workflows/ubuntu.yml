@@ -17,10 +17,8 @@ jobs:
             fail-fast: false
             matrix:
                 config:
-                    # - { os: ubuntu-latest, py: "3.8" }
-                    # - { os: ubuntu-latest, py: "3.9" }
-                    - { os: ubuntu-latest, py: "3.10" }
                     - { os: ubuntu-latest, py: "3.11" }
+                    - { os: ubuntu-latest, py: "3.12" }
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
@@ -41,7 +39,7 @@ jobs:
               run: |
                   pip install --user -r requirements.txt
                   pip install .
-            - name: PKG-TEST
+            - name: Run Tests
               run: |
-                  python -m unittest discover tests/
+                  pytest -v tests/
 

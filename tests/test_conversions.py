@@ -54,3 +54,17 @@ def test_date_to_doy_default(converter):
     # Test last day of September (end of water year)
     date = datetime.datetime(2024, 9, 30)
     assert converter.date_to_DOY(date, origin=10, algorithm="default") == 366  # Leap year 2024
+
+
+def test_date_to_doy_sturm(converter):
+    # Test October 1 (start of Sturm water year)
+    date = datetime.datetime(2023, 10, 1)
+    assert converter.date_to_DOY(date, origin=10, algorithm="Sturm") == -92
+    
+    # Test January 1
+    date = datetime.datetime(2024, 1, 1)
+    assert converter.date_to_DOY(date, origin=10, algorithm="Sturm") == 1
+    
+    # Test July 1 (outside Sturm range)
+    date = datetime.datetime(2024, 7, 1)
+    assert np.isnan(converter.date_to_DOY(date, origin=10, algorithm="Sturm"))

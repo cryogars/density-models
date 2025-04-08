@@ -24,9 +24,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-[project.entry-points."console_scripts"]
-snowmodels = "snowmodels.cli:main"
-
 
 [tool]
 [tool.setuptools.packages.find]

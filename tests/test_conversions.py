@@ -41,3 +41,16 @@ def test_inches_to_metric():
     # Test invalid unit
     with pytest.raises(ValueError):
         ConvertData.inches_to_metric(10, 'invalid_unit') 
+
+def test_date_to_doy_default(converter):
+    # Test October 1 (start of water year)
+    date = datetime.datetime(2023, 10, 1)
+    assert converter.date_to_DOY(date, origin=10, algorithm="default") == 1
+    
+    # Test October 2
+    date = datetime.datetime(2023, 10, 2)
+    assert converter.date_to_DOY(date, origin=10, algorithm="default") == 2
+    
+    # Test last day of September (end of water year)
+    date = datetime.datetime(2024, 9, 30)
+    assert converter.date_to_DOY(date, origin=10, algorithm="default") == 366  # Leap year 2024

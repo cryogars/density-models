@@ -68,3 +68,15 @@ def test_date_to_doy_sturm(converter):
     # Test July 1 (outside Sturm range)
     date = datetime.datetime(2024, 7, 1)
     assert np.isnan(converter.date_to_DOY(date, origin=10, algorithm="Sturm"))
+
+
+def test_invalid_date_type(converter):
+    # Test invalid date type
+    with pytest.raises(TypeError):
+        converter.date_to_DOY("not-a-date", algorithm="default")
+
+def test_invalid_algorithm(converter):
+    # Test invalid algorithm
+    date = datetime.datetime(2023, 10, 1)
+    with pytest.raises(ValueError):
+        converter.date_to_DOY(date, algorithm="invalid_algorithm")

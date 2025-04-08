@@ -2,6 +2,7 @@ import pytest
 import datetime
 import numpy as np
 import pandas as pd
+from snowmodels.density import SturmDensity
 from snowmodels.utils._conversions import OutOfBoundsError
 from snowmodels.utils._sturm_model_constants import (
     sturm_model_params,
@@ -9,6 +10,10 @@ from snowmodels.utils._sturm_model_constants import (
     VALID_SNOW_CLASSES,
     validate_snow_class
 )
+
+@pytest.fixture
+def sturm_model():
+    return SturmDensity()
 
 def test_sturm_model_params_structure():
     # Test the structure of the sturm_model_params dictionary
@@ -96,5 +101,44 @@ def test_validate_sturm_doy_datetime():
     assert np.isnan(validate_SturmDOY(july_1))
     
     
+def test_sturm_model_computation(sturm_model):
+    # Test computation for alpine class with 50cm depth on Jan 1 (DOY=1)
+    # Using alpine params: rho_max=0.5975, rho_0=0.2237, k1=0.0012, k2=0.0038
+    density = sturm_model.compute_density(
+        snow_depth=50,  # in cm
+        DOY=1,          # Jan 1
+        snow_class="alpine"
+    )
     
+    # Calculate expected: (rho_max - rho_0) * (1 - exp(-k1*h - k2*doy)) + rho_0
+    expected = (0.5975 - 0.2237) * (1 - np.exp(-0.0012 * 50 - 0.0038 * 1)) + 0.2237
+    assert round(density, 4) == round(expected, 4)
+    
+    # Test with datetime input for DOY
+    density_date = sturm_model.compute_density(
+        snow_depth=50,
+        DOY=datetime.datetime(2024, 1, 1),
+        snow_class="alpine"
+    )
+    assert round(density, 4) == round(density_date, 4)
+    
+    # Test invalid inputs return NaN
+    assert np.isnan(sturm_model.compute_density(
+        snow_depth=50,
+        DOY=np.nan,
+        snow_class="alpine"
+    ))
+    
+    assert np.isnan(sturm_model.compute_density(
+        snow_depth=50,
+        DOY=1,
+        snow_class="invalid_class"
+    ))
+    
+    # Test July date (outside Sturm range)
+    assert np.isnan(sturm_model.compute_density(
+        snow_depth=50,
+        DOY=datetime.datetime(2024, 7, 1),
+        snow_class="alpine"
+    ))    
     

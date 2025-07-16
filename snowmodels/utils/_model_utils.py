@@ -1,19 +1,21 @@
 import datetime
+from typing import Dict, Union 
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Union 
-from ._conversions import ConvertData, OutOfBoundsError
 
 ## Machine Learning Libraries
 from sklearn import set_config
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import root_mean_squared_error, r2_score
 
+from ._conversions import ConvertData, OutOfBoundsError
+
 set_config(transform_output="pandas")
 
 
 # Set the seed for reproducibility
-seed = 10
+SEED = 10
 
 
 def split_data(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
@@ -33,14 +35,15 @@ def split_data(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
 
     X, y, strata = df.drop('Snow_Density', axis=1), df['Snow_Density'], df['Snow_Class']
 
+
     X_temp, X_test, y_temp, y_test = train_test_split(
-        X, y, test_size=0.20, stratify=strata, random_state=seed
+        X, y, test_size=0.20, stratify=strata, random_state=SEED
     )
 
     strata2 = X_temp['Snow_Class']
 
     X_train, X_val, y_train, y_val = train_test_split(
-        X_temp, y_temp, test_size=1/8, stratify=strata2, random_state=seed
+        X_temp, y_temp, test_size=1/8, stratify=strata2, random_state=SEED
     )
 
 

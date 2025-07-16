@@ -18,7 +18,7 @@ set_config(transform_output="pandas")
 SEED = 10
 
 
-def split_data(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+def split_data(station_metadata: pd.DataFrame, df: pd.DataFrame, seed: int  = 42) -> Dict[str, pd.DataFrame]:
 
     """
     A function that splits the data into training (70%), testing (20%) and tuning (10%) sets.
@@ -33,17 +33,18 @@ def split_data(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
     A dictionary containing the training, testing and tuning sets.
     """
 
-    X, y, strata = df.drop('Snow_Density', axis=1), df['Snow_Density'], df['Snow_Class']
+    strata = station_metadata.Snow_Class
 
-
-    X_temp, X_test, y_temp, y_test = train_test_split(
-        X, y, test_size=0.20, stratify=strata, random_state=SEED
+    temp_stations, test_stations = train_test_split(
+        station_metadata, test_size=0.20, 
+        stratify=strata, random_state=seed
     )
 
-    strata2 = X_temp['Snow_Class']
+    strata2 = temp_stations.Snow_Class
 
-    X_train, X_val, y_train, y_val = train_test_split(
-        X_temp, y_temp, test_size=1/8, stratify=strata2, random_state=SEED
+    train_stations, val_stations = train_test_split(
+        temp_stations, test_size=1/8, 
+        stratify=strata2, random_state=seed
     )
 
 

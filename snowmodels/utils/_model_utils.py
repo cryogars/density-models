@@ -18,7 +18,7 @@ set_config(transform_output="pandas")
 SEED = 10
 
 
-def split_data(station_metadata: pd.DataFrame, df: pd.DataFrame, seed: int  = 42) -> Dict[str, pd.DataFrame]:
+def split_data(station_metadata: pd.DataFrame, df: pd.DataFrame, seed: int  = SEED) -> Dict[str, pd.DataFrame]:
 
     """
     A function that splits the data into training (70%), testing (20%) and tuning (10%) sets.
@@ -46,6 +46,18 @@ def split_data(station_metadata: pd.DataFrame, df: pd.DataFrame, seed: int  = 42
         temp_stations, test_size=1/8, 
         stratify=strata2, random_state=seed
     )
+
+    temp_df = df.query("Station_Name in @temp_stations.Station_Name")
+    train_df = df.query("Station_Name in @train_stations.Station_Name")
+    val_df = df.query("Station_Name in @val_stations.Station_Name")
+    test_df = df.query("Station_Name in @test_stations.Station_Name")
+
+
+    X_temp, y_temp = temp_df.drop('Snow_Density', axis=1), temp_df.Snow_Density
+    X_train, y_train = train_df.drop('Snow_Density', axis=1), train_df.Snow_Density
+    X_val, y_val = val_df.drop('Snow_Density', axis=1), val_df.Snow_Density
+    X_test, y_test = test_df.drop('Snow_Density', axis=1), test_df.Snow_Density
+
 
 
     return {
@@ -167,5 +179,3 @@ def compare_multiple_models(preds_df: pd.DataFrame, y_true: str) -> pd.DataFrame
         evaluations.append(eval)
 
     return pd.concat(evaluations, axis=1)
-
-

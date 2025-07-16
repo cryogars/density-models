@@ -144,7 +144,7 @@ def validate_DOY(x: int | float | str | pd.Timestamp | datetime.datetime, origin
             converter=ConvertData()
             return converter.date_to_DOY(date=timestamp, origin=origin, algorithm='default')
         except ValueError as e:
-            raise ValueError(f"Could not convert {x} to a valid DOY. {e}")
+            raise ValueError(f"Could not convert {x} to a valid DOY. {e}") from e
     else:
         raise TypeError(f"Input type is not supported. Expected types are int, float, str, datetime.datetime, or pd.Timestamp, got {type(x).__name__}.")
    

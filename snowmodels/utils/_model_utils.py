@@ -1,5 +1,7 @@
 import datetime
 from typing import Dict, Union 
+from abc import ABC, abstractmethod
+from collections import namedtuple
 
 import numpy as np
 import pandas as pd
@@ -12,6 +14,13 @@ from sklearn.metrics import root_mean_squared_error, r2_score
 from ._conversions import ConvertData, OutOfBoundsError
 
 set_config(transform_output="pandas")
+
+# Define the structured return type
+SplitResult = namedtuple('SplitResult', [
+    'X_train', 'X_val', 'X_test', 'X_temp',
+    'y_train', 'y_val', 'y_test', 'y_temp',
+    'train_df', 'val_df', 'test_df', 'temp_df'
+])
 
 
 # Set the seed for reproducibility

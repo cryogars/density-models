@@ -89,9 +89,6 @@ class DataSplitter(ABC):
     
 class SpatialSplitter(DataSplitter):
     """Strategy 1: Full spatial split (stations completely separated)"""
-
-    def __init__(self, seed: int = SEED):
-        super().__init__(seed)
     
     def split(self, station_metadata: pd.DataFrame, df: pd.DataFrame) -> SplitResult:
         strata = station_metadata.Snow_Class

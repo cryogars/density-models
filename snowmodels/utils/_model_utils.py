@@ -72,59 +72,74 @@ class DataSplitter(ABC):
             test_df=test_df,
             temp_df=temp_df
         )
+    
+    def get_split_info(self, splits: SplitResult) -> Dict[str, any]:
+        """Get information about the splits"""
+        return {
+            'strategy': self.__class__.__name__,
+            'train_samples': len(splits.train_df),
+            'val_samples': len(splits.val_df),
+            'test_samples': len(splits.test_df),
+            'train_stations': splits.train_df['Station_Name'].nunique(),
+            'val_stations': splits.val_df['Station_Name'].nunique(),
+            'test_stations': splits.test_df['Station_Name'].nunique(),
+            'total_stations_used': pd.concat([
+                splits.train_df, splits.val_df, splits.test_df
+            ])['Station_Name'].nunique()
+        }
 
-def split_data(station_metadata: pd.DataFrame, df: pd.DataFrame, seed: int  = SEED) -> Dict[str, pd.DataFrame]:
+# def split_data(station_metadata: pd.DataFrame, df: pd.DataFrame, seed: int  = SEED) -> Dict[str, pd.DataFrame]:
 
-    """
-    A function that splits the data into training (70%), testing (20%) and tuning (10%) sets.
+#     """
+#     A function that splits the data into training (70%), testing (20%) and tuning (10%) sets.
 
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        A pandas DataFrame containing the data to split.
+#     Parameters:
+#     -----------
+#     df : pandas DataFrame
+#         A pandas DataFrame containing the data to split.
 
-    Returns:
-    --------
-    A dictionary containing the training, testing and tuning sets.
-    """
+#     Returns:
+#     --------
+#     A dictionary containing the training, testing and tuning sets.
+#     """
 
-    strata = station_metadata.Snow_Class
+#     strata = station_metadata.Snow_Class
 
-    temp_stations, test_stations = train_test_split(
-        station_metadata, test_size=0.20, 
-        stratify=strata, random_state=seed
-    )
+#     temp_stations, test_stations = train_test_split(
+#         station_metadata, test_size=0.20, 
+#         stratify=strata, random_state=seed
+#     )
 
-    strata2 = temp_stations.Snow_Class
+#     strata2 = temp_stations.Snow_Class
 
-    train_stations, val_stations = train_test_split(
-        temp_stations, test_size=1/8, 
-        stratify=strata2, random_state=seed
-    )
+#     train_stations, val_stations = train_test_split(
+#         temp_stations, test_size=1/8, 
+#         stratify=strata2, random_state=seed
+#     )
 
-    temp_df = df.query("Station_Name in @temp_stations.Station_Name")
-    train_df = df.query("Station_Name in @train_stations.Station_Name")
-    val_df = df.query("Station_Name in @val_stations.Station_Name")
-    test_df = df.query("Station_Name in @test_stations.Station_Name")
-
-
-    X_temp, y_temp = temp_df.drop('Snow_Density', axis=1), temp_df.Snow_Density
-    X_train, y_train = train_df.drop('Snow_Density', axis=1), train_df.Snow_Density
-    X_val, y_val = val_df.drop('Snow_Density', axis=1), val_df.Snow_Density
-    X_test, y_test = test_df.drop('Snow_Density', axis=1), test_df.Snow_Density
+#     temp_df = df.query("Station_Name in @temp_stations.Station_Name")
+#     train_df = df.query("Station_Name in @train_stations.Station_Name")
+#     val_df = df.query("Station_Name in @val_stations.Station_Name")
+#     test_df = df.query("Station_Name in @test_stations.Station_Name")
 
 
+#     X_temp, y_temp = temp_df.drop('Snow_Density', axis=1), temp_df.Snow_Density
+#     X_train, y_train = train_df.drop('Snow_Density', axis=1), train_df.Snow_Density
+#     X_val, y_val = val_df.drop('Snow_Density', axis=1), val_df.Snow_Density
+#     X_test, y_test = test_df.drop('Snow_Density', axis=1), test_df.Snow_Density
 
-    return {
-        'X_train': X_train,
-        'X_test': X_test,
-        'X_val': X_val,
-        'X_temp': X_temp,
-        'y_train': y_train,
-        'y_test': y_test,
-        'y_val': y_val,
-        'y_temp': y_temp
-    }
+
+
+#     return {
+#         'X_train': X_train,
+#         'X_test': X_test,
+#         'X_val': X_val,
+#         'X_temp': X_temp,
+#         'y_train': y_train,
+#         'y_test': y_test,
+#         'y_val': y_val,
+#         'y_temp': y_temp
+#     }
 
 
 # let's create a function that will help us evaluate the results of the model

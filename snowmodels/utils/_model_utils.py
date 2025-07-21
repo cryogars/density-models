@@ -43,6 +43,35 @@ class DataSplitter(ABC):
         """
         pass
 
+    def _prepare_output(self,
+            train_df: pd.DataFrame,
+            val_df: pd.DataFrame,
+            test_df: pd.DataFrame,
+            temp_df: pd.DataFrame
+    ) -> SplitResult:
+        
+         """Helper method to prepare the output as a named tuple"""
+
+         # Split features and target
+         X_train, y_train = train_df.drop('Snow_Density', axis=1), train_df.Snow_Density
+         X_val, y_val = val_df.drop('Snow_Density', axis=1), val_df.Snow_Density
+         X_test, y_test = test_df.drop('Snow_Density', axis=1), test_df.Snow_Density
+         X_temp, y_temp = temp_df.drop('Snow_Density', axis=1), temp_df.Snow_Density
+
+         return SplitResult(
+            X_train=X_train,
+            X_val=X_val,
+            X_test=X_test,
+            X_temp=X_temp,
+            y_train=y_train,
+            y_val=y_val,
+            y_test=y_test,
+            y_temp=y_temp,
+            train_df=train_df,
+            val_df=val_df,
+            test_df=test_df,
+            temp_df=temp_df
+        )
 
 def split_data(station_metadata: pd.DataFrame, df: pd.DataFrame, seed: int  = SEED) -> Dict[str, pd.DataFrame]:
 

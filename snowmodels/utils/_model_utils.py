@@ -33,8 +33,7 @@ class DataSplitter(ABC):
     """
 
     def __init__(self, seed: int = SEED):
-
-        self.see = seed
+        self.seed = seed
 
     @abstractmethod
     def split(self, station_metadata: pd.DataFrame, df: pd.DataFrame) -> SplitResult:
@@ -90,6 +89,9 @@ class DataSplitter(ABC):
     
 class SpatialSplitter(DataSplitter):
     """Strategy 1: Full spatial split (stations completely separated)"""
+
+    def __init__(self, seed: int = SEED):
+        super().__init__(seed)
     
     def split(self, station_metadata: pd.DataFrame, df: pd.DataFrame) -> SplitResult:
         strata = station_metadata.Snow_Class
@@ -102,7 +104,7 @@ class SpatialSplitter(DataSplitter):
         
         strata2 = temp_stations.Snow_Class
         train_stations, val_stations = train_test_split(
-            temp_stations, test_size=1/8,  # 10% of total
+            temp_stations, test_size=1/8, 
             stratify=strata2, random_state=self.seed
         )
         

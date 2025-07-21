@@ -26,6 +26,23 @@ SplitResult = namedtuple('SplitResult', [
 # Set the seed for reproducibility
 SEED = 10
 
+class DataSplitter(ABC):
+
+    """
+    Abstract base class for different data splitting strategies
+    """
+
+    def __init__(self, seed: int = SEED):
+
+        self.see = seed
+
+    @abstractmethod
+    def split(self, station_metadata: pd.DataFrame, df: pd.DataFrame) -> SplitResult:
+        """
+        Split the data according to the strategy
+        """
+        pass
+
 
 def split_data(station_metadata: pd.DataFrame, df: pd.DataFrame, seed: int  = SEED) -> Dict[str, pd.DataFrame]:
 

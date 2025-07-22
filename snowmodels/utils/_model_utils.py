@@ -40,7 +40,6 @@ class DataSplitter(ABC):
         """
         Split the data according to the strategy
         """
-        pass
 
     def _prepare_output(self,
             train_df: pd.DataFrame,

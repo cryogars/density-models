@@ -112,13 +112,59 @@ class SpatialSplitter(DataSplitter):
         temp_df = df.query("Station_Name in @temp_stations.Station_Name")
         
         return self._prepare_output(train_df, val_df, test_df, temp_df)
+
+class HybridSplitter(DataSplitter):
+    """Strategy 2: Stratified Random train/val + spatial test"""
     
+    def split(self, station_metadata: pd.DataFrame, df: pd.DataFrame) -> SplitResult:
+        strata = station_metadata.Snow_Class
+        
+        # First, spatial split for test set (20% of stations)
+        train_val_stations, test_stations = train_test_split(
+            station_metadata, test_size=0.20,
+            stratify=strata, random_state=self.seed
+        )
+        
+        # Get data from train/val stations and test stations
+        train_val_data = df.query("Station_Name in @train_val_stations.Station_Name")
+        test_df = df.query("Station_Name in @test_stations.Station_Name")
+        
+        # Then, temporal split within train/val data
+        strata2 = train_val_data.Snow_Class
+        train_df, val_df = train_test_split(
+            train_val_data, test_size=0.125,  # 10% of total
+            stratify=strata2, random_state=self.seed
+        )
+        
+        temp_df = train_val_data
+        
+        return self._prepare_output(train_df, val_df, test_df, temp_df)
+
+
+class SplitterFactory:
+    """Factory class to create splitters"""
+    
+    @staticmethod
+    def create_splitter(strategy: str, seed: int = SEED) -> DataSplitter:
+        splitters = {
+            'spatial': SpatialSplitter,
+            'hybrid': HybridSplitter
+        }
+        
+        if strategy not in splitters:
+            raise ValueError(f"Unknown strategy: {strategy}. Available: {list(splitters.keys())}")
+        
+        return splitters[strategy](seed=seed)
+    
+    @staticmethod
+    def get_all_strategies() -> list:
+        return ['spatial', 'hybrid']
 
 # let's create a function that will help us evaluate the results of the model
 
 def evaluate_model(
-    y_true: Union[pd.Series, list], 
-    y_pred: Union[pd.Series, list], 
+    y_true: Union[pd.Series, list],
+    y_pred: Union[pd.Series, list],
     model_name: str
 ) -> pd.DataFrame:
 
@@ -217,7 +263,7 @@ def compare_multiple_models(preds_df: pd.DataFrame, y_true: str) -> pd.DataFrame
     evaluations=[]
 
     for col in other_preds.columns:
-        eval=evaluate_model(y_true=preds_df[y_true], y_pred=other_preds[col], model_name=col)
-        evaluations.append(eval)
+        eval_=evaluate_model(y_true=preds_df[y_true], y_pred=other_preds[col], model_name=col)
+        evaluations.append(eval_)
 
     return pd.concat(evaluations, axis=1)

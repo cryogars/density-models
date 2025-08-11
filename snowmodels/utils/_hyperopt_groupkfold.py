@@ -90,6 +90,7 @@ class TrainingData:
     groups_train: Optional[pd.Series] = None
     groups_val: Optional[pd.Series] = None
 
+
 @dataclass
 class ModelConfig:
     """Model configuration with name and parameters"""
@@ -103,6 +104,7 @@ class ModelConfig:
             return self.model_class(**self.params)
         return None
 
+
 @dataclass
 class EncoderConfig:
     """Encoder configuration"""
@@ -112,6 +114,11 @@ class EncoderConfig:
 
     def create_preprocessor(self):
         """Create and return the preprocessor pipeline"""
+        if not self.categorical_columns:
+            # No categorical columns, return passthrough
+            self.preprocessor = 'passthrough'
+            return self.preprocessor
+
         if self.encoder_type == 'onehot':
             encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
         elif self.encoder_type == 'target':
@@ -132,6 +139,7 @@ class EncoderConfig:
         )
         return self.preprocessor
 
+
 @dataclass
 class CrossValidationConfig:
     """Cross-validation configuration"""
@@ -146,6 +154,7 @@ class CrossValidationConfig:
             shuffle=self.shuffle,
             random_state=self.random_state or GLOBAL_SEED
         )
+
 
 @dataclass
 class OptimizationConfig:
@@ -171,6 +180,7 @@ class OptimizationConfig:
             sampler=self.sampler
         )
 
+
 @dataclass
 class TrainingConfig:
     """Complete training configuration"""
@@ -178,6 +188,8 @@ class TrainingConfig:
     model: ModelConfig
     encoder: EncoderConfig
     cv_config: CrossValidationConfig
+    model_variant: ModelVariant
+    eval_method: str = "cv"  # "cv" or "validation"
     global_config: Dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -195,36 +207,56 @@ class TrainingConfig:
         """Get verbosity level from global config"""
         return self.global_config.get('verbosity', -1)
 
+
 @dataclass
 class ExperimentResults:
     """Container for experiment results"""
     model_name: str
     encoder_type: str
+    model_variant: str
+    eval_method: str
     best_params: Dict[str, Any]
     best_score: float
     n_trials: int
+    feature_config: FeatureConfig
     study: Optional[Any] = None
     timestamp: Optional[str] = None
 
 
-def setup_logging():
-    """Setup logging configuration"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = f"grouped_kfold_optuna_{timestamp}.log"
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_filename),
-            logging.StreamHandler()
-        ]
-    )
-
-    logger = logging.getLogger(__name__)
-    logger.info("Starting hyperparameter optimization with Grouped KFold")
-    logger.info("Log file: %s", log_filename)
-    return logger, timestamp
+def get_model_variants() -> Dict[str, ModelVariant]:
+    """Define all model variants with their feature configurations"""
+    variants = {
+        'main': ModelVariant(
+            name='main',
+            feature_config=FeatureConfig(
+                numeric_features=['Elevation', 'Snow_Depth', 'DOWY'],
+                categorical_features=['Snow_Class'],
+                group_column='Station_Name'
+            ),
+            description='Base model with core features'
+        ),
+        'climate_7d': ModelVariant(
+            name='climate_7d',
+            feature_config=FeatureConfig(
+                numeric_features=['Elevation', 'Snow_Depth', 'DOWY',
+                                'PRECIPITATION_lag_7d', 'TAVG_lag_7d'],
+                categorical_features=['Snow_Class'],
+                group_column='Station_Name'
+            ),
+            description='Climate-enhanced model with 7-day lags'
+        ),
+        'climate_14d': ModelVariant(
+            name='climate_14d',
+            feature_config=FeatureConfig(
+                numeric_features=['Elevation', 'Snow_Depth', 'DOWY',
+                                'PRECIPITATION_lag_14d', 'TAVG_lag_14d'],
+                categorical_features=['Snow_Class'],
+                group_column='Station_Name'
+            ),
+            description='Climate-enhanced model with 14-day lags'
+        )
+    }
+    return variants
 
 def load_config(config_path="hyperparameters.yaml") -> Dict[str, Any]:
     """Load hyperparameter configuration from YAML file and set global seed"""

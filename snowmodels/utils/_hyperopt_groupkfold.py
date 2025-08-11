@@ -146,4 +146,148 @@ class TrainingConfig:
     def verbosity(self) -> int:
         """Get verbosity level from global config"""
         return self.global_config.get('verbosity', -1)
-    
+
+@dataclass
+class ExperimentResults:
+    """Container for experiment results"""
+    model_name: str
+    encoder_type: str
+    best_params: Dict[str, Any]
+    best_score: float
+    n_trials: int
+    study: Optional[Any] = None
+    timestamp: Optional[str] = None
+
+
+def setup_logging():
+    """Setup logging configuration"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"grouped_kfold_optuna_{timestamp}.log"
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_filename),
+            logging.StreamHandler()
+        ]
+    )
+
+    logger = logging.getLogger(__name__)
+    logger.info("Starting hyperparameter optimization with Grouped KFold")
+    logger.info("Log file: %s", log_filename)
+    return logger, timestamp
+
+def load_config(config_path="hyperparameters.yaml") -> Dict[str, Any]:
+    """Load hyperparameter configuration from YAML file and set global seed"""
+    global GLOBAL_SEED
+
+    try:
+        with open(file=config_path, mode='r', encoding="utf-8") as file:
+            config = yaml.safe_load(file)
+
+        # Set global seed from config
+        GLOBAL_SEED = config.get('global', {}).get('seed', 42)
+
+        # Set seeds for reproducibility
+        np.random.seed(GLOBAL_SEED)
+        if torch.cuda.is_available():
+            torch.manual_seed(GLOBAL_SEED)
+            torch.cuda.manual_seed_all(GLOBAL_SEED)
+
+        return config
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"Config file not found: {config_path}") from exc
+    except yaml.YAMLError as e:
+        raise ValueError("Error parsing YAML config") from e
+
+def get_model_class(model_name: str):
+    """Get the model class based on model name"""
+    model_map = {
+        'rf': RandomForestRegressor,
+        'extratrees': ExtraTreesRegressor,
+        'lightgbm': None,  # Will use native API
+        'xgboost': None,   # Will use native API
+    }
+
+    if model_name not in model_map:
+        available_models = list(model_map.keys())
+        raise ValueError(f"Unknown model: {model_name}. Available: {available_models}")
+
+    return model_map[model_name]
+
+def create_model_config(model_name: str, params: Dict[str, Any]) -> ModelConfig:
+    """Create ModelConfig instance with appropriate model class"""
+    model_class = get_model_class(model_name)
+    return ModelConfig(name=model_name, params=params, model_class=model_class)
+
+def suggest_hyperparameters(
+        trial: optuna.Trial,
+        model_name: str,
+        config: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Suggest hyperparameters based on config"""
+    model_config = config['models'][model_name]
+    global_config = config['global']
+    params = {}
+
+    # Suggest model-specific hyperparameters
+    for param_name, param_config in model_config.items():
+        if param_config['type'] == 'int':
+            if 'step' in param_config:
+                params[param_name] = trial.suggest_int(
+                    name=param_name,
+                    low=param_config['low'],
+                    high=param_config['high'],
+                    step=param_config['step']
+                )
+            else:
+                params[param_name] = trial.suggest_int(
+                    name=param_name,
+                    low=param_config['low'],
+                    high=param_config['high']
+                )
+
+        elif param_config['type'] == 'float':
+            log_scale = param_config.get('log', False)
+            params[param_name] = trial.suggest_float(
+                name=param_name,
+                low=param_config['low'],
+                high=param_config['high'],
+                log=log_scale
+            )
+
+        elif param_config['type'] == 'categorical':
+            params[param_name] = trial.suggest_categorical(
+                name=param_name,
+                choices=param_config['choices']
+            )
+
+    # Add global and model-specific fixed parameters
+    if model_name in SKLEARN_MODELS:
+        params.update({
+            'random_state': GLOBAL_SEED,
+            'n_jobs': global_config['n_jobs']
+        })
+
+    elif model_name == 'lightgbm':
+        params.update({
+            'objective': 'regression',
+            'metric': 'rmse',
+            'seed': GLOBAL_SEED,
+            'verbosity': global_config['verbosity'],
+            'force_col_wise': True,
+            'deterministic': True
+        })
+
+    elif model_name == 'xgboost':
+        params.update({
+            'objective': 'reg:squarederror',
+            'seed': GLOBAL_SEED,
+            'tree_method': 'hist',
+            'device': XGB_DEVICE,
+            'verbosity': 0,  # XGBoost uses 0 for silent
+            'sampling_method': 'gradient_based',
+        })
+
+    return params

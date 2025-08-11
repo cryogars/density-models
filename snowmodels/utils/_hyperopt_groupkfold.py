@@ -493,7 +493,7 @@ def train_with_native_api(training_config: TrainingConfig) -> Tuple[Any, np.ndar
         model = xgb.train(
             params,
             dtrain,
-            num_rounds=num_boost_round,
+            num_boost_round=num_boost_round,
             evals=[(dtrain, 'train'), (dval, 'val')],
             callbacks=[early_stopping],
             verbose_eval=False  # Silent training
@@ -507,13 +507,9 @@ def train_with_native_api(training_config: TrainingConfig) -> Tuple[Any, np.ndar
 
     return model, y_pred
 
-def train_sklearn_model(
-        training_config: TrainingConfig,
-        x: pd.DataFrame,
-        y: pd.Series,
-        groups: pd.Series
-) -> float:
+def train_sklearn_cv(training_config: TrainingConfig) -> float:
     """Train sklearn model with cross-validation"""
+    data = training_config.data
     model_config = training_config.model
     encoder_config = training_config.encoder
     cv_config = training_config.cv_config
@@ -523,19 +519,126 @@ def train_sklearn_model(
     model = model_config.get_model_instance()
 
     # Create pipeline
-    pipeline = Pipeline([
-        ('preprocessor', preprocessor),
-        ('regressor', model)
-    ])
+    if preprocessor == 'passthrough':
+        pipeline = model
+    else:
+        pipeline = Pipeline([
+            ('preprocessor', preprocessor),
+            ('regressor', model)
+        ])
 
     # Perform cross-validation
     gkf = cv_config.get_group_kfold()
     scores = cross_val_score(
-        pipeline, x, y,
+        pipeline, data.x, data.y,
         cv=gkf,
-        groups=groups,
+        groups=data.groups,
         scoring="neg_root_mean_squared_error",
         n_jobs=training_config.n_jobs
     )
 
     return -scores.mean()
+
+def train_sklearn_validation(training_config: TrainingConfig) -> float:
+    """Train sklearn model with validation set"""
+    data = training_config.data
+    model_config = training_config.model
+    encoder_config = training_config.encoder
+
+    # Create preprocessor and model
+    preprocessor = encoder_config.create_preprocessor()
+    model = model_config.get_model_instance()
+
+    # Fit preprocessor and transform data
+    if preprocessor == 'passthrough':
+        x_train_processed = data.x_train
+        x_val_processed = data.x_val
+    else:
+        x_train_processed = preprocessor.fit_transform(data.x_train, data.y_train)
+        x_val_processed = preprocessor.transform(data.x_val)
+
+    # Train model
+    model.fit(x_train_processed, data.y_train)
+
+    # Predict and evaluate
+    y_pred = model.predict(x_val_processed)
+    rmse = root_mean_squared_error(data.y_val, y_pred)
+
+    return rmse
+
+
+def train_boosting_cv(training_config: TrainingConfig) -> float:
+    """Train boosting model with manual cross-validation"""
+    data = training_config.data
+    cv_config = training_config.cv_config
+    encoder_config = training_config.encoder
+
+    gkf = cv_config.get_group_kfold()
+    fold_scores = []
+
+    preprocessor = encoder_config.create_preprocessor()
+
+    for fold, (train_idx, val_idx) in enumerate(gkf.split(data.x, data.y, data.groups)):
+        x_train_fold = data.x.iloc[train_idx]
+        x_val_fold = data.x.iloc[val_idx]
+        y_train_fold = data.y.iloc[train_idx]
+        y_val_fold = data.y.iloc[val_idx]
+
+        # Transform data
+        if preprocessor == 'passthrough':
+            x_train_processed = x_train_fold
+            x_val_processed = x_val_fold
+        else:
+            x_train_processed = preprocessor.fit_transform(x_train_fold, y_train_fold)
+            x_val_processed = preprocessor.transform(x_val_fold)
+
+        # Update training data in config
+        training_config.data.x_train = x_train_processed
+        training_config.data.y_train = y_train_fold
+        training_config.data.x_val = x_val_processed
+        training_config.data.y_val = y_val_fold
+
+        try:
+            # Train with native API
+            model, y_pred = train_with_native_api(training_config)
+
+            # Calculate RMSE
+            rmse = root_mean_squared_error(y_val_fold, y_pred)
+            fold_scores.append(rmse)
+
+        except Exception as exc:
+            # If training fails, return a bad score
+            logging.warning("Training failed for fold %s: %s", fold, exc)
+            fold_scores.append(float('inf'))
+
+    return np.mean(fold_scores)
+
+def train_boosting_validation(training_config: TrainingConfig) -> float:
+    """Train boosting model with validation set"""
+    data = training_config.data
+    encoder_config = training_config.encoder
+
+    # Create preprocessor
+    preprocessor = encoder_config.create_preprocessor()
+
+    # Transform data
+    if preprocessor == 'passthrough':
+        x_train_processed = data.x_train
+        x_val_processed = data.x_val
+    else:
+        x_train_processed = preprocessor.fit_transform(data.x_train, data.y_train)
+        x_val_processed = preprocessor.transform(data.x_val)
+
+    # Update data for training
+    training_config.data.x_train = x_train_processed
+    training_config.data.x_val = x_val_processed
+
+    # Train with native API
+    model, y_pred = train_with_native_api(training_config)
+
+    # Calculate RMSE
+    rmse = root_mean_squared_error(data.y_val, y_pred)
+
+    return rmse
+
+# Start with Objective

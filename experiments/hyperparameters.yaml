@@ -81,12 +81,14 @@ models:
       high: 100
     reg_alpha:
       type: "float"
-      low: 0.0
+      low: 1e-8
       high: 10.0
+      log: true
     reg_lambda:
       type: "float"
-      low: 0.0
+      low: 1e-8
       high: 10.0
+      log: true
     max_depth:
       type: "int"
       low: 6
@@ -120,12 +122,14 @@ models:
       high: 1.0
     reg_alpha:
       type: "float"
-      low: 0.0
+      low: 1e-8
       high: 10.0
+      log: true
     reg_lambda:
       type: "float"
-      low: 0.0
+      low: 1e-8
       high: 10.0
+      log: true
     min_split_loss:
       type: "float"
       low: 0.0

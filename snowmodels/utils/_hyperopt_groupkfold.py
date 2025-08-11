@@ -78,10 +78,10 @@ class ModelVariant:
 class TrainingData:
     """Container for training and validation data"""
     # For CV approach - full dataset
-    X: Optional[pd.DataFrame] = None
+    x: Optional[pd.DataFrame] = None
     y: Optional[pd.Series] = None
     groups: Optional[pd.Series] = None
-    
+
     # For train/val split approach
     x_train: Optional[pd.DataFrame] = None
     y_train: Optional[pd.Series] = None

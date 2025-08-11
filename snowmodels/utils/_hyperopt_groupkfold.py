@@ -201,6 +201,7 @@ def load_config(config_path="hyperparameters.yaml") -> Dict[str, Any]:
     except yaml.YAMLError as e:
         raise ValueError("Error parsing YAML config") from e
 
+
 def get_model_class(model_name: str):
     """Get the model class based on model name"""
     model_map = {
@@ -215,6 +216,7 @@ def get_model_class(model_name: str):
         raise ValueError(f"Unknown model: {model_name}. Available: {available_models}")
 
     return model_map[model_name]
+
 
 def create_model_config(model_name: str, params: Dict[str, Any]) -> ModelConfig:
     """Create ModelConfig instance with appropriate model class"""
@@ -291,3 +293,66 @@ def suggest_hyperparameters(
         })
 
     return params
+
+def train_with_native_api(training_config: TrainingConfig) -> Tuple[Any, np.ndarray]:
+    """Train model using native API with validation set and early stopping"""
+
+    data = training_config.data
+    model_config = training_config.model
+    early_stopping_rounds = training_config.early_stopping_rounds
+
+    # Extract num_boost_round from params if present
+    params = model_config.params.copy()
+    num_boost_round = params.pop('num_boost_round', 1000)
+
+    if model_config.name == 'lightgbm':
+        # Create LightGBM datasets
+        train_data = lgb.Dataset(data.x_train, label=data.y_train)
+        val_data = lgb.Dataset(data.x_val, label=data.y_val, reference=train_data)
+
+        # Train with early stopping
+        model = lgb.train(
+            params,
+            train_data,
+            num_boost_round=num_boost_round,
+            valid_names=['train', 'val'],
+            valid_sets=[train_data, val_data],
+            callbacks=[
+                lgb.early_stopping(stopping_rounds=early_stopping_rounds),
+                lgb.log_evaluation(period=0)  # Silent training
+            ]
+        )
+
+        # Predict on validation set
+        y_pred = model.predict(data.x_val, num_iteration=model.best_iteration)
+
+    elif model_config.name == 'xgboost':
+        # Create XGBoost matrices
+        dtrain = xgb.DMatrix(data.x_train, label=data.y_train)
+        dval = xgb.DMatrix(data.x_val, label=data.y_val)
+
+        early_stopping = xgb.callback.EarlyStopping(
+            rounds=early_stopping_rounds,
+            metric_name='rmse',
+            data_name='val',
+            maximize=False,
+            save_best=True
+        )
+
+        # Train with early stopping
+        model = xgb.train(
+            params,
+            dtrain,
+            num_rounds=num_boost_round,
+            evals=[(dtrain, 'train'), (dval, 'val')],
+            callbacks=[early_stopping],
+            verbose_eval=False  # Silent training
+        )
+
+        # Predict on validation set
+        y_pred = model.predict(dval)
+
+    else:
+        raise ValueError(f"Native API not supported for model: {model_config.name}")
+
+    return model, y_pred

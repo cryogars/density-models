@@ -1,16 +1,19 @@
 
-"""Module providing a Grouped Kfold hyperparameter tuning."""
+"""Module providing a Grouped Kfold hyperparameter tuning for snow density models."""
 
+import pickle
 import logging
-import warnings
 import argparse
+import warnings
+from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import Any, Tuple, Optional, Dict, List
+from typing import Any, Tuple, Optional, Dict, List, Union
 import yaml
 import torch
 import optuna
 import numpy as np
+import pandas as pd
 import xgboost as xgb
 import lightgbm as lgb
 import category_encoders as ce
@@ -32,15 +35,60 @@ SKLEARN_MODELS = ['rf', 'extratrees']
 GLOBAL_SEED = None
 XGB_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+
+@dataclass
+class DataSplits:
+    """Container for all data splits"""
+    x_train: pd.DataFrame
+    x_val: pd.DataFrame
+    x_temp: pd.DataFrame  # Combined train+val for CV
+    y_train: pd.Series
+    y_val: pd.Series
+    y_temp: pd.Series  # Combined train+val for CV
+    x_test: Optional[pd.DataFrame] = None
+    y_test: Optional[pd.Series] = None
+
+
+@dataclass
+class FeatureConfig:
+    """Configuration for feature selection"""
+    numeric_features: List[str]
+    categorical_features: List[str]
+    group_column: str = "Station_Name"
+
+    @property
+    def all_features(self) -> List[str]:
+        """Get all feature columns"""
+        return self.numeric_features + self.categorical_features
+
+    def select_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Select only the configured features from dataframe"""
+        return df.filter(items=self.all_features)
+
+
+@dataclass
+class ModelVariant:
+    """Configuration for a model variant"""
+    name: str
+    feature_config: FeatureConfig
+    description: str = ""
+
+
 @dataclass
 class TrainingData:
     """Container for training and validation data"""
-    x_train: Any
-    y_train: Any
-    x_val: Optional[Any] = None
-    y_val: Optional[Any] = None
-    groups_train: Optional[Any] = None
-    groups_val: Optional[Any] = None
+    # For CV approach - full dataset
+    X: Optional[pd.DataFrame] = None
+    y: Optional[pd.Series] = None
+    groups: Optional[pd.Series] = None
+    
+    # For train/val split approach
+    x_train: Optional[pd.DataFrame] = None
+    y_train: Optional[pd.Series] = None
+    x_val: Optional[pd.DataFrame] = None
+    y_val: Optional[pd.Series] = None
+    groups_train: Optional[pd.Series] = None
+    groups_val: Optional[pd.Series] = None
 
 @dataclass
 class ModelConfig:
@@ -356,3 +404,36 @@ def train_with_native_api(training_config: TrainingConfig) -> Tuple[Any, np.ndar
         raise ValueError(f"Native API not supported for model: {model_config.name}")
 
     return model, y_pred
+
+def train_sklearn_model(
+        training_config: TrainingConfig,
+        x: pd.DataFrame,
+        y: pd.Series,
+        groups: pd.Series
+) -> float:
+    """Train sklearn model with cross-validation"""
+    model_config = training_config.model
+    encoder_config = training_config.encoder
+    cv_config = training_config.cv_config
+
+    # Create preprocessor and model
+    preprocessor = encoder_config.create_preprocessor()
+    model = model_config.get_model_instance()
+
+    # Create pipeline
+    pipeline = Pipeline([
+        ('preprocessor', preprocessor),
+        ('regressor', model)
+    ])
+
+    # Perform cross-validation
+    gkf = cv_config.get_group_kfold()
+    scores = cross_val_score(
+        pipeline, x, y,
+        cv=gkf,
+        groups=groups,
+        scoring="neg_root_mean_squared_error",
+        n_jobs=training_config.n_jobs
+    )
+
+    return -scores.mean()

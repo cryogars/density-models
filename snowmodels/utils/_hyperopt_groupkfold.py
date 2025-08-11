@@ -1,5 +1,5 @@
 
-"""Module providing a Grouped Kfold hyperparameter tuning for snow density models."""
+"""Module providing a Grouped Kfold CV/ Spatial validation hyperparameter tuning for snow density models."""
 
 import pickle
 import logging
@@ -87,8 +87,6 @@ class TrainingData:
     y_train: Optional[pd.Series] = None
     x_val: Optional[pd.DataFrame] = None
     y_val: Optional[pd.Series] = None
-    groups_train: Optional[pd.Series] = None
-    groups_val: Optional[pd.Series] = None
 
 
 @dataclass
@@ -258,28 +256,100 @@ def get_model_variants() -> Dict[str, ModelVariant]:
     }
     return variants
 
-def load_config(config_path="hyperparameters.yaml") -> Dict[str, Any]:
+
+def setup_logging():
+    """Setup logging configuration"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"grouped_kfold_optuna_{timestamp}.log"
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_filename),
+            logging.StreamHandler()
+        ]
+    )
+
+    logger = logging.getLogger(__name__)
+    logger.info("Starting hyperparameter optimization with Grouped KFold")
+    logger.info("Log file: %s", log_filename)
+    return logger, timestamp
+
+def load_config(config_path: str = "hyperparameters.yaml") -> Dict[str, Any]:
     """Load hyperparameter configuration from YAML file and set global seed"""
     global GLOBAL_SEED
 
     try:
-        with open(file=config_path, mode='r', encoding="utf-8") as file:
+        with open(config_path, mode='r', encoding="utf-8") as file:
             config = yaml.safe_load(file)
 
         # Set global seed from config
         GLOBAL_SEED = config.get('global', {}).get('seed', 42)
-
-        # Set seeds for reproducibility
-        np.random.seed(GLOBAL_SEED)
-        if torch.cuda.is_available():
-            torch.manual_seed(GLOBAL_SEED)
-            torch.cuda.manual_seed_all(GLOBAL_SEED)
 
         return config
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"Config file not found: {config_path}") from exc
     except yaml.YAMLError as e:
         raise ValueError("Error parsing YAML config") from e
+
+def load_data(data_path: str) -> DataSplits:
+    """Load data splits from pickle file"""
+    logger = logging.getLogger(__name__)
+    logger.info("Loading data from %s", data_path)
+
+    with open(data_path, 'rb') as f:
+        data_splits = pickle.load(f)
+
+    # Create DataSplits object
+    splits = DataSplits(
+        x_train=data_splits.X_train,
+        x_val=data_splits.X_val,
+        x_temp=data_splits.X_temp,
+        y_train=data_splits.y_train,
+        y_val=data_splits.y_val,
+        y_temp=data_splits.y_temp,
+        x_test=getattr(data_splits, 'X_test', None),
+        y_test=getattr(data_splits, 'y_test', None)
+    )
+
+    logger.info("Data loaded successfully:")
+    logger.info("  X_train shape: %s", splits.x_train.shape)
+    logger.info("  X_val shape: %s", splits.x_val.shape)
+    logger.info("  X_temp shape: %s", splits.x_temp.shape)
+
+    return splits
+
+
+def prepare_training_data(
+    data_splits: DataSplits,
+    model_variant: ModelVariant,
+    eval_method: str = "cv"
+) -> TrainingData:
+    """Prepare training data based on evaluation method and model variant"""
+    feature_config = model_variant.feature_config
+
+    if eval_method == "cv":
+        # Use combined data for cross-validation
+        x = feature_config.select_features(data_splits.X_temp)
+        y = data_splits.y_temp
+        groups = data_splits.X_temp[feature_config.group_column]
+
+        return TrainingData(x=x, y=y, groups=groups)
+
+    if eval_method == "validation":
+        # Use pre-split data
+        x_train = feature_config.select_features(data_splits.X_train)
+        x_val = feature_config.select_features(data_splits.X_val)
+        y_train = data_splits.y_train
+        y_val = data_splits.y_val
+
+        return TrainingData(
+            x_train=x_train, y_train=y_train,
+            x_val=x_val, y_val=y_val
+        )
+
+    raise ValueError(f"Unknown evaluation method: {eval_method}")
 
 
 def get_model_class(model_name: str):

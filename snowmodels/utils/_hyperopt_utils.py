@@ -746,11 +746,13 @@ def optimize_configuration(
 
 def parse_arguments():
     """Parse command line arguments"""
-    parser = argparse.ArgumentParser(description='Hyperparameter optimization with Grouped KFold CV or validation set')
+    parser = argparse.ArgumentParser(
+        description='Hyperparameter optimization with Grouped KFold CV or validation set'
+    )
 
     parser.add_argument(
         '--model', 
-        type=str, 
+        type=str,
         choices=['rf', 'extratrees', 'lightgbm', 'xgboost'],
         required=True,
         help='Model to optimize (rf, extratrees, lightgbm, xgboost)'

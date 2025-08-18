@@ -1045,3 +1045,7 @@ def save_best_config(best_result: ExperimentResults, model_name: str,
 
     logger.info(f"Best configuration saved to: {config_filename}")
     logger.info("This file can be used to train the final model for production")
+
+
+if __name__ == "__main__":
+    main()

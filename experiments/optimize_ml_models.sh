@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# ============================================================================
-# Comprehensive Hyperparameter Optimization for Snow Density Models
-# ============================================================================
+# ======================================================
+# Hyperparameter Optimization for Snow Density Models
+# ======================================================
 
 # Exit on error
 set -e

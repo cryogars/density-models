@@ -8,7 +8,7 @@
 set -e
 
 # Configuration
-SCRIPT_PATH="snowmodels/utils/_hyperopt_utils.py"
+SCRIPT_PATH="../snowmodels/utils/_hyperopt_utils.py"
 DATA_PATH="../data/data_splits.pkl"
 CONFIG_PATH="hyperparameters.yaml"
 DB_PATH="sqlite:///optuna_studies.db"

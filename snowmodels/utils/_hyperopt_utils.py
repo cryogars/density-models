@@ -263,15 +263,15 @@ def setup_logging():
 
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
+        format='%(asctime)s - %(levelname)s  %(filename)s:%(lineno)d - %(message)s',
         handlers=[
-            logging.FileHandler(log_filename),
+            #logging.FileHandler(log_filename),
             logging.StreamHandler()
         ]
     )
 
     logger = logging.getLogger(__name__)
-    logger.info("Starting hyperparameter optimization with Grouped KFold")
+    logger.info("Starting hyperparameter optimization")
     logger.info("Log file: %s", log_filename)
     return logger, timestamp
 
@@ -330,9 +330,9 @@ def prepare_training_data(
 
     if eval_method == "cv":
         # Use combined data for cross-validation
-        x = feature_config.select_features(data_splits.X_temp)
+        x = feature_config.select_features(data_splits.x_temp)
         y = data_splits.y_temp
-        groups = data_splits.X_temp[feature_config.group_column]
+        groups = data_splits.x_temp[feature_config.group_column]
 
         return TrainingData(x=x, y=y, groups=groups)
 

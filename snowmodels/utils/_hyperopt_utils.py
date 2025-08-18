@@ -712,10 +712,15 @@ def optimize_configuration(
     )
 
     # Create study
-    study_suffix = f"{model_variant.name}_{model_name}_{encoder_type}_{eval_method}"
+    study_suffix = f"{model_variant.name}_{encoder_type}_{eval_method}"
     study = opt_config.create_study(suffix=study_suffix)
 
-    logger.info("Optimizing: %s", study_suffix)
+
+    logger.info(
+        "Optimizing: %s - %s variant - %s encoder - %s",
+        model_name, model_variant.name, encoder_type, eval_method
+    )
+    logger.info("  Study name: %s", study.study_name)
     logger.info("  Features: %s", model_variant.feature_config.all_features)
     logger.info("  Evaluation: %s", eval_method)
 
@@ -809,15 +814,235 @@ def parse_arguments():
     parser.add_argument(
         '--study-name',
         type=str,
-        default='snow_model_optimization',
-        help='Base name for Optuna study (default: snow_model_optimization)'
+        default=None,
+        help='Base name for Optuna study (default: {model} name)'
     )
 
     parser.add_argument(
         '--storage-url',
         type=str,
-        default=None,
-        help='Database URL for Optuna study storage (optional)'
+        default='sqlite:///optuna_studies.db',
+        help='Database URL for Optuna study storage (default: sqlite:///optuna_studies.db)'
     )
 
     return parser.parse_args()
+
+def main():
+    """Main execution function"""
+
+    args = parse_arguments()
+    logger, timestamp = setup_logging()
+
+    # Load Config
+    config = load_config(args.config)
+    logger.info("Loaded config from %s", args.config)
+    logger.info("Global seed set to: %s", GLOBAL_SEED)
+
+    # Load data
+    data_splits = load_data(args.data_path)
+
+    # Get model variants
+    all_variants = get_model_variants()
+    selected_variants = {k: v for k, v in all_variants.items() if k in args.model_variants}
+
+    # Set default study name if not provided
+    if args.study_name is None:
+        args.study_name = args.model
+
+    # Create optimization configuration
+    opt_config = OptimizationConfig(
+        n_trials=args.n_trials,
+        study_name=args.study_name,
+        storage_url=args.storage_url
+    )
+
+    # Run experiments
+    all_results = []
+    total_experiments = (
+        len(selected_variants) * len(args.encoders) * len(args.eval_methods)
+    )
+
+    logger.info("Running %s optimization experiments", total_experiments)
+    logger.info("Model variants: %s", list(selected_variants.keys()))
+    logger.info("Encoders: %s", args.encoders)
+    logger.info("Evaluation methods: %s", args.eval_methods)
+    logger.info("Model: %s", args.model)
+    logger.info("="*60)
+
+    experiment_count = 0
+    for variant_name, variant in selected_variants.items():
+        for encoder_type in args.encoders:
+            for eval_method in args.eval_methods:
+                experiment_count += 1
+                logger.info("\nExperiment %s/%s", experiment_count, total_experiments)
+                logger.info("-"*40)
+
+                try:
+                    results = optimize_configuration(
+                        data_splits=data_splits,
+                        model_variant=variant,
+                        model_name=args.model,
+                        encoder_type=encoder_type,
+                        eval_method=eval_method,
+                        config=config,
+                        opt_config=opt_config
+                    )
+                    all_results.append(results)
+
+                except Exception as e:
+                    logger.error("Experiment failed: %s", e)
+                    continue
+
+    # Analyze and save results
+    if all_results:
+        logger.info("\n%s", "="*60)
+        logger.info("EXPERIMENT RESULTS SUMMARY")
+        logger.info("="*60)
+
+        # Sort results by score
+        sorted_results = sorted(all_results, key=lambda x: x.best_score)
+
+        # Display top 10 results
+        logger.info("\nTop 10 Configurations:")
+        logger.info("-"*40)
+        for i, result in enumerate(sorted_results[:10], start=1):
+            logger.info("%2d. %-12s | %-10s | %-10s | RMSE: %.4f",
+            i, result.model_variant, result.encoder_type, result.eval_method, result.best_score)
+
+        # Best overall result
+        best_result = sorted_results[0]
+        logger.info("\n%s", "="*60)
+        logger.info("BEST CONFIGURATION")
+        logger.info("="*60)
+        logger.info("Model Variant: %s", best_result.model_variant)
+        logger.info("Model Type:  %s", best_result.model_name)
+        logger.info("Encoder:  %s", best_result.encoder_type)
+        logger.info("Evaluation:  %s", best_result.eval_method)
+        logger.info("Best RMSE: %.4f", best_result.best_score)
+        logger.info("Features: %s", best_result.feature_config.all_features)
+
+        logger.info("\nBest Hyperparameters:")
+        for param, value in best_result.best_params.items():
+            if isinstance(value, float):
+                logger.info("  %s: %.6f", param, value)
+            else:
+                logger.info("  %s: %s", param, value)
+
+        # Compare model variants
+        logger.info("\n%s", "="*60)
+        logger.info("MODEL VARIANT COMPARISON")
+        logger.info("="*60)
+
+        for variant_name in selected_variants.keys():
+            variant_results = [r for r in all_results if r.model_variant == variant_name]
+            if variant_results:
+                best_variant_result = min(variant_results, key=lambda x: x.best_score)
+                avg_score = np.mean([r.best_score for r in variant_results])
+                logger.info("%-12s: Best RMSE = %.4f, Avg RMSE = %.4f",
+                            variant_name, best_variant_result.best_score, avg_score)
+
+        # Compare evaluation methods
+        logger.info("\n%s", "="*60)
+        logger.info("EVALUATION METHOD COMPARISON")
+        logger.info("="*60)
+
+        for eval_method in args.eval_methods:
+            method_results = [r for r in all_results if r.eval_method == eval_method]
+            if method_results:
+                best_method_result = min(method_results, key=lambda x: x.best_score)
+                avg_score = np.mean([r.best_score for r in method_results])
+                logger.info("%-10s: Best RMSE = %.4f, Avg RMSE = %.4f",
+                            eval_method, best_method_result.best_score, avg_score)
+
+        # Compare encoders
+        logger.info("\n%s", "="*60)
+        logger.info("ENCODER COMPARISON")
+        logger.info("="*60)
+
+        for encoder in args.encoders:
+            encoder_results = [r for r in all_results if r.encoder_type == encoder]
+            if encoder_results:
+                best_encoder_result = min(encoder_results, key=lambda x: x.best_score)
+                avg_score = np.mean([r.best_score for r in encoder_results])
+                logger.info("%-10s: Best RMSE = %.4f, Avg RMSE = %.4f",
+                            encoder, best_encoder_result.best_score, avg_score)
+
+        # Save detailed results to YAML
+        save_results_to_yaml(all_results, args.model, timestamp, logger)
+
+        # Save best configuration for production use
+        save_best_config(best_result, args.model, timestamp, logger)
+
+    else:
+        logger.error("No successful experiments completed!")
+
+    return all_results
+
+def save_results_to_yaml(results: List[ExperimentResults], model_name: str,
+                         timestamp: str, logger: logging.Logger):
+    """Save all results to YAML file"""
+    results_filename = f"optimization_results_{model_name}_{timestamp}.yaml"
+
+    results_dict = {
+        'model': model_name,
+        'timestamp': timestamp,
+        'global_seed': GLOBAL_SEED,
+        'total_experiments': len(results),
+        'results': {}
+    }
+
+    for result in results:
+        key = f"{result.model_variant}_{result.encoder_type}_{result.eval_method}"
+        results_dict['results'][key] = {
+            'model_variant': result.model_variant,
+            'encoder_type': result.encoder_type,
+            'eval_method': result.eval_method,
+            'score': float(result.best_score),
+            'n_trials': result.n_trials,
+            'features': {
+                'numeric': result.feature_config.numeric_features,
+                'categorical': result.feature_config.categorical_features
+            },
+            'params': {k: float(v) if isinstance(v, np.floating) else v 
+                      for k, v in result.best_params.items()}
+        }
+
+    with open(results_filename, 'w', encoding='utf-8') as f:
+        yaml.dump(results_dict, f, default_flow_style=False, sort_keys=False)
+
+    logger.info(f"\nDetailed results saved to: {results_filename}")
+
+def save_best_config(best_result: ExperimentResults, model_name: str,
+                    timestamp: str, logger: logging.Logger):
+    """Save best configuration for production use"""
+    config_filename = f"best_config_{model_name}_{timestamp}.yaml"
+
+    best_config = {
+        'model': {
+            'type': best_result.model_name,
+            'variant': best_result.model_variant,
+            'encoder': best_result.encoder_type,
+            'eval_method': best_result.eval_method
+        },
+        'features': {
+            'numeric': best_result.feature_config.numeric_features,
+            'categorical': best_result.feature_config.categorical_features,
+            'group_column': best_result.feature_config.group_column
+        },
+        'performance': {
+            'rmse': float(best_result.best_score),
+            'n_trials': best_result.n_trials
+        },
+        'hyperparameters': {k: float(v) if isinstance(v, np.floating) else v 
+                           for k, v in best_result.best_params.items()},
+        'metadata': {
+            'timestamp': timestamp,
+            'seed': GLOBAL_SEED
+        }
+    }
+
+    with open(config_filename, 'w', encoding='utf-8') as f:
+        yaml.dump(best_config, f, default_flow_style=False, sort_keys=False)
+
+    logger.info(f"Best configuration saved to: {config_filename}")
+    logger.info("This file can be used to train the final model for production")

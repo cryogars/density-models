@@ -18,11 +18,12 @@ RESULTS_DIR="results"
 # Create directories if they don't exist
 mkdir -p $LOG_DIR
 mkdir -p $RESULTS_DIR
+mkdir -p "best_config"
 
 # Experiment settings
 N_TRIALS=100  
 MODELS=("lightgbm" "xgboost" "rf" "extratrees")
-VARIANTS=("main" "climate_7d" "climate_14d")
+VARIANTS=("main" "climate_7d" "climate_14d" "main_geo" "climate_7d_geo" "climate_14d_geo")
 ENCODERS=("onehot" "target" "catboost")
 EVAL_METHODS=("cv" "validation")
 
@@ -73,7 +74,7 @@ case $RUN_MODE in
         echo "Running QUICK TEST (10 trials, main variant only)"
         echo "================================================"
         for model in "${MODELS[@]}"; do
-            run_experiment $model 10 "main" "onehot target" "cv"
+            run_experiment $model 10 "main" "catboost" "validation"
         done
         ;;
     
@@ -81,7 +82,7 @@ case $RUN_MODE in
         echo "Running MAIN VARIANT ONLY (all models, 100 trials)"
         echo "=================================================="
         for model in "${MODELS[@]}"; do
-            run_experiment $model $N_TRIALS "main" "onehot target catboost" "cv validation"
+            run_experiment $model $N_TRIALS "main main_geo" "onehot target catboost" "cv validation"
         done
         ;;
     
@@ -89,7 +90,7 @@ case $RUN_MODE in
         echo "Running CLIMATE VARIANTS ONLY (all models, 100 trials)"
         echo "======================================================="
         for model in "${MODELS[@]}"; do
-            run_experiment $model $N_TRIALS "climate_7d climate_14d" "onehot target catboost" "cv validation"
+            run_experiment $model $N_TRIALS "climate_7d climate_14d climate_7d_geo climate_14d_geo" "onehot target catboost" "cv validation"
         done
         ;;
     
@@ -98,7 +99,7 @@ case $RUN_MODE in
         echo "======================================================"
         for model in "${MODELS[@]}"; do
             echo ">>> Processing $model with all variants <<<"
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d" "onehot target catboost" "cv validation"
+            run_experiment $model $N_TRIALS "main climate_7d climate_14d main_geo climate_7d_geo climate_14d_geo" "onehot target catboost" "cv validation"
             echo ">>> Completed $model, moving to next model <<<"
             sleep 5  # Brief pause between models
         done
@@ -108,7 +109,7 @@ case $RUN_MODE in
         echo "Running BOOSTING MODELS ONLY (LightGBM & XGBoost)"
         echo "================================================="
         for model in "lightgbm" "xgboost"; do
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d" "onehot target catboost" "cv validation"
+            run_experiment $model $N_TRIALS "main climate_7d climate_14d main_geo climate_7d_geo climate_14d_geo" "onehot target catboost" "cv validation"
         done
         ;;
     
@@ -116,7 +117,7 @@ case $RUN_MODE in
         echo "Running TREE MODELS ONLY (RF & ExtraTrees)"
         echo "=========================================="
         for model in "rf" "extratrees"; do
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d" "onehot target catboost" "cv validation"
+            run_experiment $model $N_TRIALS "main climate_7d climate_14d main_geo climate_7d_geo climate_14d_geo" "onehot target catboost" "cv validation"
         done
         ;;
     
@@ -124,7 +125,7 @@ case $RUN_MODE in
         echo "Running CV EVALUATION ONLY (all models)"
         echo "======================================="
         for model in "${MODELS[@]}"; do
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d" "onehot target catboost" "cv"
+            run_experiment $model $N_TRIALS "main climate_7d climate_14d main_geo climate_7d_geo climate_14d_geo" "onehot target catboost" "cv"
         done
         ;;
     
@@ -132,7 +133,7 @@ case $RUN_MODE in
         echo "Running VALIDATION EVALUATION ONLY (all models)"
         echo "==============================================="
         for model in "${MODELS[@]}"; do
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d" "onehot target catboost" "validation"
+            run_experiment $model $N_TRIALS "main climate_7d climate_14d main_geo climate_7d_geo climate_14d_geo" "onehot target catboost" "validation"
         done
         ;;
     
@@ -140,7 +141,7 @@ case $RUN_MODE in
         # For custom single experiment - edit as needed
         echo "Running CUSTOM EXPERIMENT"
         echo "========================"
-        run_experiment "lightgbm" 50 "climate_7d" "target" "cv"
+        run_experiment "lightgbm" 10 "main" "catboost" "validation"
         ;;
     
     "all"|*)
@@ -185,27 +186,3 @@ echo "To view results in Optuna dashboard:"
 echo "  optuna-dashboard $DB_PATH"
 echo ""
 
-# Generate summary report
-echo "Generating summary of best results..."
-python -c "
-import sqlite3
-import pandas as pd
-
-conn = sqlite3.connect('optuna_studies.db')
-query = '''
-SELECT 
-    study_name,
-    best_value as rmse,
-    n_trials
-FROM studies
-ORDER BY best_value
-LIMIT 20
-'''
-df = pd.read_sql_query(query, conn)
-print('\nTop 20 Best Configurations:')
-print(df.to_string(index=False))
-conn.close()
-" 2>/dev/null || echo "Could not generate summary (database may still be locked)"
-
-echo ""
-echo "Done!"

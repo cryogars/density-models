@@ -2,9 +2,9 @@
 
 # Global settings applied to all models
 global:
-  seed: 10
+  seed: 100
   n_jobs: -1
-  early_stopping_rounds: 30
+  early_stopping_rounds: 20
   verbosity: -1
 
 
@@ -13,128 +13,100 @@ models:
   rf:  # Random Forest
     n_estimators:
       type: "int"
-      low: 50
+      low: 100
       high: 300
-      step: 10
+      step: 50
     max_depth:
       type: "int"
-      low: 3
-      high: 20
+      low: 5
+      high: 15
     min_samples_split:
       type: "int"
-      low: 2
-      high: 20
+      low: 10
+      high: 50
     min_samples_leaf:
       type: "int"
-      low: 1
-      high: 10
+      low: 5
+      high: 25
 
 
   extratrees:  # Extra Trees
     n_estimators:
       type: "int"
-      low: 50
+      low: 100
       high: 300
-      step: 10
+      step: 500
     max_depth:
       type: "int"
-      low: 3
-      high: 20
+      low: 5
+      high: 15
     min_samples_split:
       type: "int"
-      low: 2
-      high: 20
+      low: 10
+      high: 50
     min_samples_leaf:
       type: "int"
-      low: 1
-      high: 10
+      low: 5
+      high: 25
 
 
 
   lightgbm:  # LightGBM Native API
-    boosting_type:
-      type: "categorical"
-      choices: ["gbdt", "dart"]
     num_leaves:
       type: "int"
-      low: 10
+      low: 50
       high: 300
-    data_sample_strategy:
-      type: "categorical"
-      choices: ["bagging", "goss"]
     learning_rate:
       type: "float"
       low: 0.01
-      high: 0.5
-      log: true
-    bagging_fraction:
-      type: "float"
-      low: 0.4
-      high: 1.0
-    bagging_freq:
-      type: "int"
-      low: 1
-      high: 7
+      high: 0.1
+      log: True
     min_child_samples:
       type: "int"
-      low: 5
+      low: 10
       high: 100
     reg_alpha:
       type: "float"
       low: 1e-8
-      high: 10.0
-      log: true
+      high: 5.0
+      log: True
     reg_lambda:
       type: "float"
       low: 1e-8
-      high: 10.0
-      log: true
+      high: 5.0
+      log: True
     max_depth:
       type: "int"
       low: 6
-      high: 20
-    num_boost_round:
-      type: "int"
-      low: 100
-      high: 1000
+      high: 15
+
 
 
   xgboost:  # XGBoost Native API
-    booster:
-      type: "categorical"
-      choices: ["gbtree", "dart"]
     eta:
       type: "float"
       low: 0.01
-      high: 0.5
-      log: true
+      high: 0.1
+      log: True
     max_depth:
       type: "int"
       low: 6
-      high: 20
+      high: 15
     min_child_weight:
       type: "int"
-      low: 1
-      high: 10
-    subsample:
-      type: "float"
-      low: 0.5
-      high: 1.0
+      low: 4
+      high: 50
     reg_alpha:
       type: "float"
       low: 1e-8
-      high: 10.0
-      log: true
+      high: 5.0
+      log: True
     reg_lambda:
       type: "float"
       low: 1e-8
-      high: 10.0
-      log: true
+      high: 5.0
+      log: True
     min_split_loss:
       type: "float"
-      low: 0.0
+      low: 1e-8
       high: 5.0
-    num_boost_round:
-      type: "int"
-      low: 100
-      high: 1000

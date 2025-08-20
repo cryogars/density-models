@@ -132,7 +132,7 @@ class EncoderConfig:
 
         self.preprocessor = ColumnTransformer(
             transformers=[('cat', encoder, self.categorical_columns)],
-            remainder='passthrough'
+            remainder='passthrough', verbose_feature_names_out=False
         )
         return self.preprocessor
 
@@ -251,6 +251,37 @@ def get_model_variants() -> Dict[str, ModelVariant]:
                 group_column='Station_Name'
             ),
             description='Climate-enhanced model with 14-day lags'
+        ),
+        'main_geo': ModelVariant(
+            name='main_geo',
+            feature_config=FeatureConfig(
+                numeric_features=['Elevation', 'Snow_Depth', 'DOWY', 'Latitude', 'Longitude'],
+                categorical_features=['Snow_Class'],
+                group_column='Station_Name'
+            ),
+            description='Base model with lat and lon'
+        ),
+        'climate_7d_geo': ModelVariant(
+            name='climate_7d_geo',
+            feature_config=FeatureConfig(
+                numeric_features=['Elevation', 'Snow_Depth', 'DOWY',
+                                'PRECIPITATION_lag_7d', 'TAVG_lag_7d',
+                                'Latitude', 'Longitude'],
+                categorical_features=['Snow_Class'],
+                group_column='Station_Name'
+            ),
+            description='Climate-enhanced model with 7-day lags and lat and lon'
+        ),
+        'climate_14d_geo': ModelVariant(
+            name='climate_14d_geo',
+            feature_config=FeatureConfig(
+                numeric_features=['Elevation', 'Snow_Depth', 'DOWY',
+                                'PRECIPITATION_lag_14d', 'TAVG_lag_14d',
+                                'Latitude', 'Longitude'],
+                categorical_features=['Snow_Class'],
+                group_column='Station_Name'
+            ),
+            description='Climate-enhanced model with 14-day lags and lat and lon'
         )
     }
     return variants
@@ -338,8 +369,8 @@ def prepare_training_data(
 
     if eval_method == "validation":
         # Use pre-split data
-        x_train = feature_config.select_features(data_splits.X_train)
-        x_val = feature_config.select_features(data_splits.X_val)
+        x_train = feature_config.select_features(data_splits.x_train)
+        x_val = feature_config.select_features(data_splits.x_val)
         y_train = data_splits.y_train
         y_val = data_splits.y_val
 
@@ -401,10 +432,12 @@ def suggest_hyperparameters(
 
         elif param_config['type'] == 'float':
             log_scale = param_config.get('log', False)
+            low=float(param_config['low'])
+            high=float(param_config['high'])
             params[param_name] = trial.suggest_float(
                 name=param_name,
-                low=param_config['low'],
-                high=param_config['high'],
+                low=low,
+                high=high,
                 log=log_scale
             )
 
@@ -422,6 +455,7 @@ def suggest_hyperparameters(
         })
 
     elif model_name == 'lightgbm':
+
         params.update({
             'objective': 'regression',
             'metric': 'rmse',
@@ -432,13 +466,15 @@ def suggest_hyperparameters(
         })
 
     elif model_name == 'xgboost':
+        sampling_method = "gradient_based" if XGB_DEVICE == "cuda" else "uniform"
+
         params.update({
             'objective': 'reg:squarederror',
             'seed': GLOBAL_SEED,
             'tree_method': 'hist',
             'device': XGB_DEVICE,
             'verbosity': 0,  # XGBoost uses 0 for silent
-            'sampling_method': 'gradient_based',
+            'sampling_method': sampling_method,
         })
 
     return params
@@ -449,6 +485,17 @@ def train_with_native_api(training_config: TrainingConfig) -> Tuple[Any, np.ndar
     data = training_config.data
     model_config = training_config.model
     early_stopping_rounds = training_config.early_stopping_rounds
+    encoder_config = training_config.encoder
+
+
+    preprocessor = encoder_config.create_preprocessor()
+
+    if preprocessor == 'passthrough':
+        x_train_processed = data.x_train
+        x_val_processed = data.x_val
+    else:
+        x_train_processed = preprocessor.fit_transform(data.x_train, data.y_train)
+        x_val_processed = preprocessor.transform(data.x_val)
 
     # Extract num_boost_round from params if present
     params = model_config.params.copy()
@@ -456,8 +503,8 @@ def train_with_native_api(training_config: TrainingConfig) -> Tuple[Any, np.ndar
 
     if model_config.name == 'lightgbm':
         # Create LightGBM datasets
-        train_data = lgb.Dataset(data.x_train, label=data.y_train)
-        val_data = lgb.Dataset(data.x_val, label=data.y_val, reference=train_data)
+        train_data = lgb.Dataset(x_train_processed, label=data.y_train)
+        val_data = lgb.Dataset(x_val_processed, label=data.y_val, reference=train_data)
 
         # Train with early stopping
         model = lgb.train(
@@ -473,12 +520,12 @@ def train_with_native_api(training_config: TrainingConfig) -> Tuple[Any, np.ndar
         )
 
         # Predict on validation set
-        y_pred = model.predict(data.x_val, num_iteration=model.best_iteration)
+        y_pred = model.predict(x_val_processed, num_iteration=model.best_iteration)
 
     elif model_config.name == 'xgboost':
         # Create XGBoost matrices
-        dtrain = xgb.DMatrix(data.x_train, label=data.y_train)
-        dval = xgb.DMatrix(data.x_val, label=data.y_val)
+        dtrain = xgb.DMatrix(x_train_processed, label=data.y_train)
+        dval = xgb.DMatrix(x_val_processed, label=data.y_val)
 
         early_stopping = xgb.callback.EarlyStopping(
             rounds=early_stopping_rounds,
@@ -766,8 +813,14 @@ def parse_arguments():
         '--model-variants',
         type=str,
         nargs='+',
-        default=['main', 'climate_7d', 'climate_14d'],
-        choices=['main', 'climate_7d', 'climate_14d'],
+        default=[
+            'main', 'climate_7d', 'climate_14d',
+            'main_geo', 'climate_7d_geo', 'climate_14d_geo'
+        ],
+        choices=[
+            'main', 'climate_7d', 'climate_14d',
+            'main_geo', 'climate_7d_geo', 'climate_14d_geo'
+        ],
         help='Model variants to test (default: all)'
     )
 
@@ -792,7 +845,7 @@ def parse_arguments():
     parser.add_argument(
         '--n-trials',
         type=int,
-        default=50,
+        default=100,
         help='Number of trials per configuration (default: 50)'
     )
 
@@ -966,11 +1019,20 @@ def main():
                 logger.info("%-10s: Best RMSE = %.4f, Avg RMSE = %.4f",
                             encoder, best_encoder_result.best_score, avg_score)
 
+        variants_ = '_'.join(args.model_variants)
+        encoders_ = '_'.join(args.encoders)
+        evals_ = '_'.join(args.eval_methods)
         # Save detailed results to YAML
-        save_results_to_yaml(all_results, args.model, timestamp, logger)
+        save_results_to_yaml(
+            all_results, args.model, timestamp,
+            logger, variants_, encoders_, evals_
+        )
 
         # Save best configuration for production use
-        save_best_config(best_result, args.model, timestamp, logger)
+        save_best_config(
+            best_result, args.model, timestamp, logger,
+            variants_, encoders_, evals_
+        )
 
     else:
         logger.error("No successful experiments completed!")
@@ -978,9 +1040,12 @@ def main():
     return all_results
 
 def save_results_to_yaml(results: List[ExperimentResults], model_name: str,
-                         timestamp: str, logger: logging.Logger):
+                         timestamp: str, logger: logging.Logger, variant:str,
+                         encoders:str, evals:str):
     """Save all results to YAML file"""
-    results_filename = f"optimization_results_{model_name}_{timestamp}.yaml"
+    # results_filename = f"results/optimization_results_{model_name}_{timestamp}.yaml"
+    
+    results_filename = f"results/{model_name}_{variant}_{evals}_{encoders}_{timestamp}.yaml"
 
     results_dict = {
         'model': model_name,
@@ -1012,9 +1077,10 @@ def save_results_to_yaml(results: List[ExperimentResults], model_name: str,
     logger.info(f"\nDetailed results saved to: {results_filename}")
 
 def save_best_config(best_result: ExperimentResults, model_name: str,
-                    timestamp: str, logger: logging.Logger):
+                    timestamp: str, logger: logging.Logger, variant:str,
+                    encoders:str, evals:str):
     """Save best configuration for production use"""
-    config_filename = f"best_config_{model_name}_{timestamp}.yaml"
+    config_filename = f"best_config/{model_name}_{variant}_{evals}_{encoders}_{timestamp}.yaml"
 
     best_config = {
         'model': {

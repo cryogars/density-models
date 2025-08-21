@@ -174,7 +174,9 @@ def prepare_data(
 
     return final_data
 
-if __name__ == '__main__'
+if __name__ == '__main__':
+
+    pass
 
 # import pickle
 # import logging

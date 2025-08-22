@@ -2,12 +2,12 @@
 """
 Module providing hyperparameter tuning for ML density models.
 """
-
 import pickle
 import logging
 from datetime import datetime
 from dataclasses import dataclass
-from typing import Optional, assert_never, Literal
+from typing import Optional, assert_never, Literal, Dict, Any
+import yaml
 import pandas as pd
 from category_encoders import CatBoostEncoder
 from sklearn.preprocessing import TargetEncoder, OneHotEncoder
@@ -112,14 +112,11 @@ def model_variant_selector(variant: Literal['main', 'climate_7', 'climate_14']) 
         ) from ase
     return selected_features
 
-
-def prepare_data(
-        model_variant: str, data_path: str,
-        encoder: str, cfg: GlobalConfig, final_eval: bool = True,
+def load_data(
+        data_path: str, final_eval: bool = True
 ) -> DataSplits:
-    """Prepare data"""
+    """Load data splits from a pickle file"""
 
-    features = model_variant_selector(variant=model_variant)
     logger = logging.getLogger(__name__)
     logger.info("Loading data from %s", data_path)
 
@@ -127,56 +124,133 @@ def prepare_data(
         data_splits = pickle.load(f)
 
     if final_eval:
-        x_train = data_splits.X_temp.filter(items=features)
-        x_test = data_splits.X_test.filter(items=features)
+        x_train = data_splits.X_temp
+        x_test = data_splits.X_test
         y_train = data_splits.y_temp
         y_test = data_splits.y_test
     else:
-        x_train = data_splits.X_train.filter(items=features)
-        x_test = data_splits.X_val.filter(items=features)
+        x_train = data_splits.X_train
+        x_test = data_splits.X_val
         y_train = data_splits.y_train
         y_test = data_splits.y_val
 
+    splits = DataSplits(
+        x_train = x_train,
+        x_val = x_test,
+        y_train = y_train,
+        y_val = y_test
+    )
+
     logger.info("Data loaded successfully!")
+    logger.info("For tuning? %s", not final_eval)
+
+    return splits
+
+def prepare_data(
+        encoder: str, cfg: GlobalConfig,
+        model_variant: str, data: DataSplits
+) -> DataSplits:
+    """Prepare data"""
+    logger = logging.getLogger(__name__)
+
     logger.info("Preprocessing Snow Class using %s...", encoder)
+    features = model_variant_selector(variant=model_variant)
 
     snow_class_encoder = ecnoder_preprocessor(encoder=encoder, cfg=cfg)
 
-    x_cat_train = snow_class_encoder.fit_transform(x_train.Snow_Class.to_frame(), y_train)
-    x_cat_test = snow_class_encoder.transform(x_test.Snow_Class.to_frame())
+    x_cat_train = snow_class_encoder.fit_transform(data.x_train.Snow_Class.to_frame(), data.y_train)
+    x_cat_test = snow_class_encoder.transform(data.x_val.Snow_Class.to_frame())
 
     logger.info("Snow Class encoding finished!")
-    logger.info("Now preparing the final dataset for next use case")
+    logger.info("Now preparing the final dataset for the '%s' model variant", model_variant)
+
+    features.remove('Snow_Class')
 
     x_train_prep = pd.concat(
-        [x_train.filter(items=features.remove('Snow_Class')), x_cat_train],
+        [data.x_train.filter(items=features), x_cat_train],
         axis=1
     )
     x_test_prep = pd.concat(
-        [x_test.filter(items=features.remove('Snow_Class')), x_cat_test],
+        [data.x_val.filter(items=features), x_cat_test],
         axis=1
     )
 
     final_data = DataSplits(
         x_train = x_train_prep,
         x_val = x_test_prep,
-        y_train = y_train,
-        y_val = y_test,
+        y_train = data.y_train,
+        y_val = data.y_val,
         x_train_nogeo = x_train_prep.drop(columns=['Latitude', 'Longitude'], axis=1),
         x_val_nogeo = x_test_prep.drop(columns=['Latitude', 'Longitude'], axis=1)
     )
 
-    logger.info("Data loaded successfully")
-    logger.info("For tuning? %s", not final_eval)
-    logger.info("Features %s", final_eval.columns.to_list())
+    logger.info("Data preparation complete!")
+    logger.info("Features: %s", final_data.x_train.columns.to_list())
     logger.info("  X_train shape: %s", final_data.x_train.shape)
     logger.info("  X_val shape: %s", final_data.x_val.shape)
 
     return final_data
 
-if __name__ == '__main__':
+def load_config(config_path: str = "hyperparameters.yaml") -> Dict[str, Any]:
+    """Load hyperparameter configuration (and global options) from YAML file"""
 
-    pass
+    try:
+        with open(config_path, mode='r', encoding="utf-8") as file:
+            config = yaml.safe_load(file)
+
+        return config
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"Config file not found: {config_path}") from exc
+    except yaml.YAMLError as e:
+        raise ValueError("Error parsing YAML config") from e
+
+def running_data_prep_steps(
+        encder: Literal['onehot', 'catboost', 'target'],
+        model_variant: Literal['main', 'climate_7', 'climate_14'],
+        raw_data: DataSplits
+) -> DataSplits:
+    """Setup data prep"""
+
+    config = load_config()
+    global_config = GlobalConfig(
+        early_stopping = config.get('global').get('early_stopping_rounds'),
+        verbosity = config.get('global').get('verbosity'),
+        seed = config.get('global').get('seed'),
+        n_jobs = config.get('global').get('n_jobs')
+    )
+
+    processed_data=prepare_data(
+        encoder = encder, cfg = global_config,
+        model_variant = model_variant, data = raw_data
+    )
+
+    return processed_data
+
+def main():
+    """Main execution function"""
+
+    logger, timestamp = setup_logging()
+
+    data_path = "../../data/data_splits.pkl"
+    raw_data=load_data(data_path=data_path, final_eval=True)
+
+    for encoder in ['onehot', 'target', 'catboost']:
+
+        logger.info("="*35)
+        logger.info("Data preparation for %s", encoder)
+        logger.info("="*35)
+
+        processed_data=running_data_prep_steps(encder=encoder, model_variant='climate_7', raw_data=raw_data)
+
+
+        logger.info("data head printed at %s", timestamp)
+        logger.info(processed_data.x_train.head())
+        logger.info('\n\n')
+
+
+if __name__ == "__main__":
+
+    main()
 
 # import pickle
 # import logging

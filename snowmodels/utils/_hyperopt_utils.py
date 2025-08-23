@@ -4,6 +4,7 @@ Module providing hyperparameter tuning for ML density models.
 """
 import pickle
 import logging
+import argparse
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional, assert_never, Literal, Dict, Any
@@ -54,17 +55,17 @@ def setup_logging():
         ]
     )
     logger = logging.getLogger(__name__)
-    logger.info("Starting hyperparameter optimization")
 
     return logger, timestamp
 
 def ecnoder_preprocessor(
         encoder: Literal['onehot', 'catboost', 'target'],
-        cfg: GlobalConfig
-) -> OneHotEncoder | CatBoostEncoder | TargetEncoder:
+        cfg: GlobalConfig, data: DataSplits
+) -> DataSplits:
     """A function to preprocess using the specified encoder"""
-
+    logger = logging.getLogger(__name__)
     seed = cfg.seed
+    logger.info("Encoding Snow Class using %s Encoding", encoder.upper())
 
     try:
         if encoder == 'onehot':
@@ -90,18 +91,47 @@ def ecnoder_preprocessor(
             f"Unknown encoder type: {encoder}. Choose onehot, target, or catboost"
         ) from ase
 
-    return snow_class_encoder
+    x_cat_train = snow_class_encoder.fit_transform(data.x_train.Snow_Class.to_frame(), data.y_train)
+    x_cat_test = snow_class_encoder.transform(data.x_val.Snow_Class.to_frame())
 
-def model_variant_selector(variant: Literal['main', 'climate_7', 'climate_14']) -> list:
+    x_train_prep = pd.concat(
+        [data.x_train.drop('Snow_Class', axis=1), x_cat_train],
+        axis=1
+    )
+    x_test_prep = pd.concat(
+        [data.x_val.drop('Snow_Class', axis=1), x_cat_test],
+        axis=1
+    )
+
+    splits = DataSplits(
+        x_train = x_train_prep,
+        x_val = x_test_prep,
+        y_train = data.y_train,
+        y_val = data.y_val,
+        x_train_nogeo = x_train_prep.drop(columns=['Latitude', 'Longitude'], axis=1),
+        x_val_nogeo = x_test_prep.drop(columns=['Latitude', 'Longitude'], axis=1)
+    )
+
+    logger.info("Snow Class encoding finished!")
+
+    return splits
+
+def model_variant_selector(
+        variant: Literal['main', 'climate_7', 'climate_14'],
+        data: DataSplits
+) -> DataSplits:
     """Select and validate model variant"""
+    logger = logging.getLogger(__name__)
+    logger.info("Performing feature selection for '%s' model variant", variant)
+
     try:
         if variant == 'main':
             selected_features = MAIN_FEATURES + NOMINAL_FEATURE
 
-        elif variant == 'climate_7':
+        elif variant == 'climate_7d':
             selected_features = MAIN_FEATURES + NOMINAL_FEATURE + CLIMATE_7_FEATURES
 
-        elif variant == 'climate_14':
+        elif variant == 'climate_14d':
             selected_features = MAIN_FEATURES + NOMINAL_FEATURE + CLIMATE_14_FEATURES
 
         else:
@@ -110,7 +140,15 @@ def model_variant_selector(variant: Literal['main', 'climate_7', 'climate_14']) 
         raise ValueError(
             f"Unknown model variant: {variant}. Choose main, climate_7, or climate_14"
         ) from ase
-    return selected_features
+
+
+    selected_data = DataSplits(
+        x_train = data.x_train.filter(items=selected_features),
+        x_val = data.x_val.filter(items=selected_features),
+        y_train = data.y_train,
+        y_val = data.y_val
+    )
+    return selected_data
 
 def load_data(
         data_path: str, final_eval: bool = True
@@ -146,51 +184,6 @@ def load_data(
 
     return splits
 
-def prepare_data(
-        encoder: str, cfg: GlobalConfig,
-        model_variant: str, data: DataSplits
-) -> DataSplits:
-    """Prepare data"""
-    logger = logging.getLogger(__name__)
-
-    logger.info("Preprocessing Snow Class using %s...", encoder)
-    features = model_variant_selector(variant=model_variant)
-
-    snow_class_encoder = ecnoder_preprocessor(encoder=encoder, cfg=cfg)
-
-    x_cat_train = snow_class_encoder.fit_transform(data.x_train.Snow_Class.to_frame(), data.y_train)
-    x_cat_test = snow_class_encoder.transform(data.x_val.Snow_Class.to_frame())
-
-    logger.info("Snow Class encoding finished!")
-    logger.info("Now preparing the final dataset for the '%s' model variant", model_variant)
-
-    features.remove('Snow_Class')
-
-    x_train_prep = pd.concat(
-        [data.x_train.filter(items=features), x_cat_train],
-        axis=1
-    )
-    x_test_prep = pd.concat(
-        [data.x_val.filter(items=features), x_cat_test],
-        axis=1
-    )
-
-    final_data = DataSplits(
-        x_train = x_train_prep,
-        x_val = x_test_prep,
-        y_train = data.y_train,
-        y_val = data.y_val,
-        x_train_nogeo = x_train_prep.drop(columns=['Latitude', 'Longitude'], axis=1),
-        x_val_nogeo = x_test_prep.drop(columns=['Latitude', 'Longitude'], axis=1)
-    )
-
-    logger.info("Data preparation complete!")
-    logger.info("Features: %s", final_data.x_train.columns.to_list())
-    logger.info("  X_train shape: %s", final_data.x_train.shape)
-    logger.info("  X_val shape: %s", final_data.x_val.shape)
-
-    return final_data
-
 def load_config(config_path: str = "hyperparameters.yaml") -> Dict[str, Any]:
     """Load hyperparameter configuration (and global options) from YAML file"""
 
@@ -204,13 +197,39 @@ def load_config(config_path: str = "hyperparameters.yaml") -> Dict[str, Any]:
     except yaml.YAMLError as e:
         raise ValueError("Error parsing YAML config") from e
 
-def running_data_prep_steps(
-        encder: Literal['onehot', 'catboost', 'target'],
-        model_variant: Literal['main', 'climate_7', 'climate_14'],
-        raw_data: DataSplits
-) -> DataSplits:
-    """Setup data prep"""
+def parse_arguments():
+    """Parse command line arguments"""
 
+    parser = argparse.ArgumentParser(
+        description = "Hyperparameter optimization using Optuna and a validation set"
+    )
+
+    parser.add_argument(
+        '--variants', type = str,
+        nargs = '+',
+        default = ['main', 'climate_7d', 'climate_14d'],
+        choices = ['main', 'climate_7d', 'climate_14d'],
+        help = 'model variants to compare (defaults to all)'
+    )
+
+    parser.add_argument(
+        '--encoders', type = str,
+        nargs = '+',
+        default = ['onehot', 'target', 'catboost'],
+        choices = ['onehot', 'target', 'catboost'],
+        help = 'Encoders to compare (defaults to all)'
+    )
+
+    return parser.parse_args()
+
+
+def main():
+    """Main execution function"""
+
+    logger, timestamp = setup_logging()
+    all_args = parse_arguments()
+    data_path = "../../data/data_splits.pkl"
+    raw_data=load_data(data_path=data_path, final_eval=True)
     config = load_config()
     global_config = GlobalConfig(
         early_stopping = config.get('global').get('early_stopping_rounds'),
@@ -219,33 +238,34 @@ def running_data_prep_steps(
         n_jobs = config.get('global').get('n_jobs')
     )
 
-    processed_data=prepare_data(
-        encoder = encder, cfg = global_config,
-        model_variant = model_variant, data = raw_data
-    )
+    for variant in all_args.variants:
 
-    return processed_data
+        logger.info("="*29)
+        logger.info("Starting data ppreprocessing.")
+        logger.info("="*29)
 
-def main():
-    """Main execution function"""
+        selected_variant = model_variant_selector(variant=variant, data=raw_data)
 
-    logger, timestamp = setup_logging()
-
-    data_path = "../../data/data_splits.pkl"
-    raw_data=load_data(data_path=data_path, final_eval=True)
-
-    for encoder in ['onehot', 'target', 'catboost']:
-
-        logger.info("="*35)
-        logger.info("Data preparation for %s", encoder)
-        logger.info("="*35)
-
-        processed_data=running_data_prep_steps(encder=encoder, model_variant='climate_7', raw_data=raw_data)
+        for encoder in all_args.encoders:
 
 
-        logger.info("data head printed at %s", timestamp)
-        logger.info(processed_data.x_train.head())
-        logger.info('\n\n')
+            processed_data=ecnoder_preprocessor(
+                encoder=encoder,
+                cfg=global_config,
+                data=selected_variant
+            )
+
+            logger.info(
+                "Data preparation for '%s' with '%s' encoder complete!",
+                variant, encoder.upper()
+            )
+            logger.info("Features: %s", processed_data.x_train.columns.to_list())
+            logger.info("  X_train shape: %s", processed_data.x_train.shape)
+            logger.info("  X_val shape: %s", processed_data.x_val.shape)
+
+            logger.info("data head printed at %s", timestamp)
+            logger.info(processed_data.x_train.head())
+        logger.info("All things data done!")
 
 
 if __name__ == "__main__":

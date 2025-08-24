@@ -11,7 +11,10 @@ from typing import Optional, assert_never, Literal, Dict, Any
 import yaml
 import torch
 import optuna
+import numpy as np
 import pandas as pd
+import xgboost as xgb
+import lightgbm as lgb
 from category_encoders import CatBoostEncoder
 from sklearn.preprocessing import TargetEncoder, OneHotEncoder
 from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
@@ -31,9 +34,18 @@ NOMINAL_FEATURE = ['Snow_Class']
 XGB_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+@dataclass
+class EvaluationMetrics:
+    """Container for evaluation metrics"""
+
+    rmse: float
+    r2: float
+    mbe: float
+    best_iteration: Optional[int] = None
+
 @dataclass(frozen=True)
 class GlobalConfig:
-    """container for global config"""
+    """Container for global config"""
 
     early_stopping_rounds: int
     verbosity: int
@@ -42,7 +54,7 @@ class GlobalConfig:
 
 @dataclass(frozen=True)
 class DataSplits:
-    """container for datasplits"""
+    """Container for datasplits"""
 
     x_train: pd.DataFrame
     x_val: pd.DataFrame
@@ -119,6 +131,125 @@ class ExperimentResults:
     best_params: Dict[str, Any]
     best_score: float
     n_trials: int
+
+@dataclass(frozen=True)
+class DefaultTuner:
+    """A class for default tuning"""
+    cfg: GlobalConfig
+    data: DataSplits
+    model: Literal['rf', 'extratrees', 'lightgbm', 'xgboost']
+
+    def __post_init__(self):
+        """Validate the model after initialization"""
+
+        try:
+            if self.model in ['rf', 'extratrees', 'lightgbm', 'xgboost']:
+                pass
+            else:
+                assert_never(self.model)
+        except AssertionError as ase:
+            raise ValueError(
+                f"{self.model} not supported. Choose from {SKLEARN_MODELS + BOOSTING_MODELS}"
+            ) from ase
+
+
+    def _calculate_metrics(self, y_true, y_pred, best_iteration=None) -> EvaluationMetrics:
+
+        return EvaluationMetrics(
+            rmse = rmse(y_true=y_true, y_pred=y_pred),
+            r2 = r2_score(y_true=y_true, y_pred=y_pred),
+            mbe = np.mean(y_pred - y_true),
+            best_iteration = best_iteration
+        )
+
+
+    def train_and_evaluate(self) -> EvaluationMetrics:
+
+        """Train and evaluate ml models"""
+
+        if self.model == 'extratrees':
+            model = ExtraTreesRegressor(
+                random_state=self.cfg.seed,
+                n_jobs=self.cfg.n_jobs
+            )
+            model.fit(
+                self.data.x_train, self.data.y_train
+            )
+
+            y_pred = model.predict(self.data.x_val)
+
+            return self._calculate_metrics(self.data.y_val, y_pred)
+
+        if self.model == 'rf':
+            model = RandomForestRegressor(
+                random_state=self.cfg.seed,
+                n_jobs=self.cfg.n_jobs
+            )
+            model.fit(
+                self.data.x_train, self.data.y_train
+            )
+
+            y_pred = model.predict(self.data.x_val)
+
+            return self._calculate_metrics(self.data.y_val, y_pred)
+
+        if self.model == 'lightgbm':
+            params = {
+                'objective': 'regression',
+                'metric': ['rmse'],
+                'random_state': self.cfg.seed
+            }
+            train_data = lgb.Dataset(self.data.x_train, label=self.data.y_train)
+            val_data = lgb.Dataset(self.data.x_val, label=self.data.y_val, reference=train_data)
+
+            model = lgb.train(
+                params,
+                train_data,
+                valid_sets=[train_data, val_data],
+                valid_names=['train', 'valid'],
+                callbacks=[
+                    lgb.early_stopping(stopping_rounds=self.cfg.early_stopping_rounds),
+                    lgb.log_evaluation(period=0)
+                ],
+                num_boost_round=1000
+            )
+
+            y_pred = model.predict(self.data.x_val, num_iteration=model.best_iteration)
+
+            return self._calculate_metrics(self.data.y_val, y_pred, model.best_iteration)
+
+        if self.model == 'xgboost':
+            dtrain = xgb.DMatrix(self.data.x_train, label=self.data.y_train)
+            dval = xgb.DMatrix(self.data.x_val, label=self.data.y_val)
+
+            params = {
+                'objective': 'reg:squarederror',
+                'random_state': self.cfg.seed
+            }
+
+            early_stopping = xgb.callback.EarlyStopping(
+                rounds=self.cfg.early_stopping_rounds,
+                metric_name='rmse',
+                data_name='val',
+                maximize=False,
+                save_best=True
+            )
+
+            model = xgb.train(
+                params,
+                dtrain,
+                num_boost_round=1000,
+                evals=[(dtrain, 'train'), (dval, 'val')],
+                callbacks=[early_stopping],
+                verbose_eval=False
+            )
+
+            y_pred = model.predict(dval)
+
+            return self._calculate_metrics(self.data.y_val, y_pred, model.best_iteration)
+
+        return None
+
 
 def setup_logging():
     """Setup logging configuration"""
@@ -199,7 +330,7 @@ def model_variant_selector(
 ) -> DataSplits:
     """Select and validate model variant"""
     logger = logging.getLogger(__name__)
-    logger.info("Performing feature selection for '%s' model variant", variant)
+    logger.info("Performing feature selection...")
 
     try:
         if variant == 'main':
@@ -320,11 +451,6 @@ def suggest_hyperparameters(
                 pname, pspec.low, pspec.high, log=pspec.log
             )
 
-        elif pspec.type == "categorical":
-            params[pname] = trial.suggest_categorical(
-                pname, pspec.choices
-            )
-
     # Add global / backend-specific defaults
     params.update(apply_backend_defaults(model_name, config.global_cfg))
 
@@ -379,6 +505,29 @@ def parse_arguments():
         help = 'Encoders to compare (defaults to all)'
     )
 
+    parser.add_argument(
+        '--data-path',
+        type = str,
+        default = "../../data/data_splits.pkl",
+        help='Path to pickle file with data splits (default: ../data/data_splits.pkl)'
+    )
+
+    parser.add_argument(
+        '--config-path',
+        type=str,
+        default="../../experiments/hyperparameters.yaml",
+        help='Path to hyperparameter config file (default: hyperparameters.yaml)'
+    )
+
+    parser.add_argument(
+        '--tuning-mode',
+        nargs = '+',
+        type=str,
+        default = ['default'],
+        choices = ['default', 'tune'],
+        help='Whether to tune or use default configuration'
+    )
+
     return parser.parse_args()
 
 
@@ -387,15 +536,14 @@ def main():
 
     logger, timestamp = setup_logging()
     all_args = parse_arguments()
-    data_path = "../../data/data_splits.pkl"
-    raw_data=load_data(data_path=data_path, final_eval=False)
-    all_config = load_config(config_path="../../experiments/hyperparameters.yaml")
+    raw_data=load_data(data_path=all_args.data_path, final_eval=False)
+    all_config = load_config(config_path=all_args.config_path)
 
     for variant in all_args.variants:
 
-        logger.info("="*29)
-        logger.info("Starting data ppreprocessing.")
-        logger.info("="*29)
+        logger.info("="*59)
+        logger.info("Starting data preprocessing for %s model variants.", variant.upper())
+        logger.info("="*59)
 
         selected_variant = model_variant_selector(variant=variant, data=raw_data)
 
@@ -410,7 +558,7 @@ def main():
 
             logger.info(
                 "Data preparation for '%s' with '%s' encoder complete!",
-                variant, encoder.upper()
+                variant.upper(), encoder.upper()
             )
             logger.info("Features: %s", processed_data.x_train.columns.to_list())
             logger.info("  X_train shape: %s", processed_data.x_train.shape)
@@ -419,7 +567,7 @@ def main():
             model.fit(processed_data.x_train, processed_data.y_train)
             rmse_val = rmse(y_pred=model.predict(processed_data.x_val), y_true=processed_data.y_val)
             r2_val = r2_score(y_pred=model.predict(processed_data.x_val), y_true=processed_data.y_val)
-            logger.info("======>>>>>> RMSE: %.4f\t R2: %.4f<<<<<<<<======\n\n", rmse_val, r2_val)
+            logger.info("======>>>>>> RMSE: %.4f\t R2: %.4f <<<<<<<<======\n\n", rmse_val, r2_val)
 
             # logger.info("data head printed at %s", timestamp)
             # logger.info(processed_data.x_train.head())

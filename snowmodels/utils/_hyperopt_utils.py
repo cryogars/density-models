@@ -6,12 +6,20 @@ import pickle
 import logging
 import argparse
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, assert_never, Literal, Dict, Any
 import yaml
+import torch
+import optuna
 import pandas as pd
 from category_encoders import CatBoostEncoder
 from sklearn.preprocessing import TargetEncoder, OneHotEncoder
+from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
+from sklearn.metrics import root_mean_squared_error as rmse, r2_score
+
+# # Model configuration
+BOOSTING_MODELS = ['lightgbm', 'xgboost']
+SKLEARN_MODELS = ['rf', 'extratrees']
 
 MAIN_FEATURES = [
     'Elevation', 'Snow_Depth', 'DOWY',
@@ -20,13 +28,14 @@ MAIN_FEATURES = [
 CLIMATE_7_FEATURES = ['PRECIPITATION_lag_7d', 'TAVG_lag_7d']
 CLIMATE_14_FEATURES = ['PRECIPITATION_lag_14d', 'TAVG_lag_14d']
 NOMINAL_FEATURE = ['Snow_Class']
+XGB_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 @dataclass(frozen=True)
 class GlobalConfig:
     """container for global config"""
 
-    early_stopping: int
+    early_stopping_rounds: int
     verbosity: int
     seed: Optional[int] = None
     n_jobs: Optional[int] = None
@@ -42,6 +51,74 @@ class DataSplits:
     x_train_nogeo: Optional[pd.DataFrame] = None
     x_val_nogeo: Optional[pd.DataFrame] = None
 
+@dataclass
+class ParamSpec:
+    """Container for hyperparameter spec"""
+
+    type: str
+    low: Optional[float | int] = None
+    high: Optional[float | int] = None
+    step: Optional[int] = None
+    log: bool = False
+
+@dataclass
+class ModelConfig:
+    """
+        Dataclass wrapper for model-specific hyperparameter configurations.
+
+        Provides dict-like access (`__getitem__`, `.items()`, etc.) while still
+        maintaining type safety with ParamSpec objects.
+
+        Example:
+        --------
+        >>> model_cfg = config.models["rf"]
+        >>> n_estimators = model_cfg["n_estimators"]
+        >>> print(n_estimators.low, n_estimators.high)
+
+        Attributes
+        ----------
+        params : Dict[str, ParamSpec]
+            Mapping of hyperparameter names to their specifications.
+    """
+    params: Dict[str, ParamSpec] = field(default_factory=dict)
+
+    def __getitem__(self, key: str) -> ParamSpec:
+        """Allow dict-like access: model_cfg['n_estimators'] → ParamSpec."""
+        return self.params[key]
+
+    def __iter__(self):
+        """Iterate over parameter names."""
+        return iter(self.params)
+
+    def items(self):
+        """Return (name, ParamSpec) pairs."""
+        return self.params.items()
+
+    def keys(self):
+        """Return parameter names."""
+        return self.params.keys()
+
+    def values(self):
+        """Return ParamSpec objects only."""
+        return self.params.values()
+
+@dataclass
+class HyperparamConfig:
+    """Container for configurations"""
+
+    global_cfg: GlobalConfig
+    models: Dict[str, ModelConfig]
+
+@dataclass
+class ExperimentResults:
+    """Container for experiment results"""
+    model_name: str
+    encoder_type: str
+    model_variant: str
+    eval_method: str
+    best_params: Dict[str, Any]
+    best_score: float
+    n_trials: int
 
 def setup_logging():
     """Setup logging configuration"""
@@ -184,14 +261,96 @@ def load_data(
 
     return splits
 
-def load_config(config_path: str = "hyperparameters.yaml") -> Dict[str, Any]:
+def apply_backend_defaults(model_name: str, global_cfg: GlobalConfig) -> Dict[str, Any]:
+    """Add defaults specific to sklearn, lightgbm, or xgboost."""
+    if model_name in SKLEARN_MODELS:
+        return {
+            "random_state": global_cfg.seed,
+            "n_jobs": global_cfg.n_jobs,
+        }
+
+    if model_name == "lightgbm":
+        return {
+            "objective": "regression",
+            "metric": "rmse",
+            "seed": global_cfg.seed,
+            "verbosity": global_cfg.verbosity,
+            "force_col_wise": True,
+            "deterministic": True
+        }
+
+    if model_name == "xgboost":
+        sampling_method = "gradient_based" if XGB_DEVICE == "cuda" else "uniform"
+        return {
+            "objective": "reg:squarederror",
+            "seed": global_cfg.seed,
+            "tree_method": "hist",
+            "device": XGB_DEVICE,
+            "verbosity": 0,
+            "sampling_method": sampling_method
+        }
+
+    return {}
+
+
+def suggest_hyperparameters(
+    trial: optuna.Trial,
+    model_name: str,
+    config: HyperparamConfig
+) -> Dict[str, Any]:
+    """Suggest hyperparameters for a given model using dataclass config."""
+    params = {}
+
+    # Fetch the model's ParamSpecs
+    model_params = config.models[model_name]
+
+    for pname, pspec in model_params.items():
+        if pspec.type == "int":
+            if pspec.step:
+                params[pname] = trial.suggest_int(
+                    pname, pspec.low, pspec.high, step=pspec.step
+                )
+            else:
+                params[pname] = trial.suggest_int(
+                    pname, pspec.low, pspec.high
+                )
+
+        elif pspec.type == "float":
+            params[pname] = trial.suggest_float(
+                pname, pspec.low, pspec.high, log=pspec.log
+            )
+
+        elif pspec.type == "categorical":
+            params[pname] = trial.suggest_categorical(
+                pname, pspec.choices
+            )
+
+    # Add global / backend-specific defaults
+    params.update(apply_backend_defaults(model_name, config.global_cfg))
+
+    return params
+
+def load_config(config_path: str = "hyperparameters.yaml") -> HyperparamConfig:
     """Load hyperparameter configuration (and global options) from YAML file"""
 
     try:
-        with open(config_path, mode='r', encoding="utf-8") as file:
-            config = yaml.safe_load(file)
 
-        return config
+        with open(config_path, mode='r', encoding="utf-8") as file:
+            raw_config = yaml.safe_load(file)
+
+        # parse global section
+        global_config = GlobalConfig(**raw_config['global'])
+
+            # parse models section
+        models = {}
+        for model_name, params in raw_config["models"].items():
+            param_specs = {
+                pname: ParamSpec(**pconfig) for pname, pconfig in params.items()
+            }
+            models[model_name] = ModelConfig(param_specs)
+
+        return HyperparamConfig(global_cfg=global_config, models=models)
+
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"Config file not found: {config_path}") from exc
     except yaml.YAMLError as e:
@@ -229,14 +388,8 @@ def main():
     logger, timestamp = setup_logging()
     all_args = parse_arguments()
     data_path = "../../data/data_splits.pkl"
-    raw_data=load_data(data_path=data_path, final_eval=True)
-    config = load_config()
-    global_config = GlobalConfig(
-        early_stopping = config.get('global').get('early_stopping_rounds'),
-        verbosity = config.get('global').get('verbosity'),
-        seed = config.get('global').get('seed'),
-        n_jobs = config.get('global').get('n_jobs')
-    )
+    raw_data=load_data(data_path=data_path, final_eval=False)
+    all_config = load_config(config_path="../../experiments/hyperparameters.yaml")
 
     for variant in all_args.variants:
 
@@ -251,7 +404,7 @@ def main():
 
             processed_data=ecnoder_preprocessor(
                 encoder=encoder,
-                cfg=global_config,
+                cfg=all_config.global_cfg,
                 data=selected_variant
             )
 
@@ -262,10 +415,15 @@ def main():
             logger.info("Features: %s", processed_data.x_train.columns.to_list())
             logger.info("  X_train shape: %s", processed_data.x_train.shape)
             logger.info("  X_val shape: %s", processed_data.x_val.shape)
+            model=ExtraTreesRegressor(random_state=100, n_jobs=-1)
+            model.fit(processed_data.x_train, processed_data.y_train)
+            rmse_val = rmse(y_pred=model.predict(processed_data.x_val), y_true=processed_data.y_val)
+            r2_val = r2_score(y_pred=model.predict(processed_data.x_val), y_true=processed_data.y_val)
+            logger.info("======>>>>>> RMSE: %.4f\t R2: %.4f<<<<<<<<======\n\n", rmse_val, r2_val)
 
-            logger.info("data head printed at %s", timestamp)
-            logger.info(processed_data.x_train.head())
-        logger.info("All things data done!")
+            # logger.info("data head printed at %s", timestamp)
+            # logger.info(processed_data.x_train.head())
+    logger.info("Done!!!")
 
 
 if __name__ == "__main__":

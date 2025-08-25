@@ -6,7 +6,7 @@ import pickle
 import logging
 import argparse
 from datetime import datetime
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import Optional, assert_never, Literal, Dict, Any
 import yaml
 import torch
@@ -42,6 +42,7 @@ class EvaluationMetrics:
     r2: float
     mbe: float
     best_iteration: Optional[int] = None
+
 
 @dataclass(frozen=True)
 class GlobalConfig:
@@ -123,18 +124,39 @@ class HyperparamConfig:
     models: Dict[str, ModelConfig]
 
 @dataclass
+class FinalModelConfig:
+    """Container for final model configuration"""
+    name: str
+    variant: str
+    encoder: str
+    mode: str
+
+@dataclass
+class PerformanceConfig:
+    """Container for performance configuration"""
+    metrics: EvaluationMetrics
+    hyperparameters: Dict[str, Any]
+
+@dataclass
 class ExperimentResults:
     """Container for experiment results"""
-    model_name: str
-    encoder_type: str
-    model_variant: str
-    eval_method: str
-    best_params: Dict[str, Any]
-    best_score: float
-    n_trials: int
+    model: FinalModelConfig
+    performance: PerformanceConfig
+    config: Dict[str, Any]
+
+# @dataclass
+# class ExperimentResults:
+#     """Container for experiment results"""
+#     model_name: str
+#     encoder_type: str
+#     model_variant: str
+#     eval_method: str
+#     best_params: Dict[str, Any]
+#     best_score: float
+#     n_trials: int
 
 @dataclass(frozen=True)
-class DefaultTuner:
+class DefaultTrainer:
     """A class for default tuning"""
     cfg: GlobalConfig
     data: DataSplits
@@ -153,7 +175,7 @@ class DefaultTuner:
                 f"{self.model} not supported. Choose from {SKLEARN_MODELS + BOOSTING_MODELS}"
             ) from ase
 
-    def default_params(self) -> dict | None:
+    def default_params(self) -> Dict[str, Any]:
         """Get default params"""
         if self.model in SKLEARN_MODELS:
             return {
@@ -164,7 +186,7 @@ class DefaultTuner:
         if self.model == 'lightgbm':
             return {
                 'objective': 'regression',
-                'metric': ['rmse'],
+                'metric': 'rmse',
                 'random_state': self.cfg.seed,
                 "force_col_wise": True,
                 "verbosity": self.cfg.verbosity
@@ -180,7 +202,7 @@ class DefaultTuner:
         return None
 
 
-    def default_results(self) -> EvaluationMetrics:
+    def default_results(self) -> PerformanceConfig:
 
         """Train and evaluate ml models using default settings"""
 
@@ -196,16 +218,15 @@ def compute_metrics_for_logging(y_true, y_pred, best_iteration=None) -> Evaluati
     return EvaluationMetrics(
         rmse = rmse(y_true=y_true, y_pred=y_pred),
         r2 = r2_score(y_true=y_true, y_pred=y_pred),
-        mbe = np.mean(y_pred - y_true),
+        mbe = float(np.mean(y_pred - y_true)),
         best_iteration = best_iteration
-
     )
 
 
 def train_and_evaluate_models(
         model_name: Literal['rf', 'extratrees', 'lightgbm', 'xgboost'],
-        params, cfg: GlobalConfig, data: DataSplits
-) -> EvaluationMetrics:
+        params: Dict[str, Any], cfg: GlobalConfig, data: DataSplits
+) -> PerformanceConfig:
     """A container to train all models"""
 
     if model_name == 'extratrees':
@@ -215,8 +236,9 @@ def train_and_evaluate_models(
         )
         y_pred = model.predict(data.x_val)
 
-        return compute_metrics_for_logging(
-            y_true=data.y_val, y_pred=y_pred
+        return PerformanceConfig(
+            metrics=compute_metrics_for_logging(y_true=data.y_val, y_pred=y_pred),
+            hyperparameters=params
         )
 
     if model_name == 'rf':
@@ -228,8 +250,9 @@ def train_and_evaluate_models(
 
         y_pred = model.predict(data.x_val)
 
-        return compute_metrics_for_logging(
-            y_true=data.y_val, y_pred=y_pred
+        return PerformanceConfig(
+            metrics=compute_metrics_for_logging(y_true=data.y_val, y_pred=y_pred),
+            hyperparameters=params
         )
 
     if model_name == 'lightgbm':
@@ -252,8 +275,11 @@ def train_and_evaluate_models(
 
         y_pred = model.predict(data.x_val, num_iteration=model.best_iteration)
 
-        return compute_metrics_for_logging(
-            y_true=data.y_val, y_pred=y_pred, best_iteration=model.best_iteration
+        return PerformanceConfig(
+            metrics=compute_metrics_for_logging(
+                y_true=data.y_val, y_pred=y_pred, best_iteration=model.best_iteration
+            ),
+            hyperparameters=params
         )
 
     if model_name == 'xgboost':
@@ -282,8 +308,11 @@ def train_and_evaluate_models(
 
         y_pred = model.predict(dval)
 
-        return compute_metrics_for_logging(
-            y_true=data.y_val, y_pred=y_pred, best_iteration=model.best_iteration
+        return PerformanceConfig(
+            metrics=compute_metrics_for_logging(
+                y_true=data.y_val, y_pred=y_pred, best_iteration=model.best_iteration
+            ),
+            hyperparameters=params
         )
 
     return None
@@ -574,6 +603,20 @@ def parse_arguments():
         help='Whether to tune or use default configuration'
     )
 
+    parser.add_argument(
+        '--n-trials',
+        type=int,
+        default=100,
+        help='Number of trials per configuration (default: 100)'
+    )
+
+    parser.add_argument(
+        '--storage-url',
+        type=str,
+        default='sqlite:///optuna_studies.db',
+        help='Database URL for Optuna study storage (default: sqlite:///optuna_studies.db)'
+    )
+
     return parser.parse_args()
 
 
@@ -595,7 +638,6 @@ def main():
 
         for encoder in all_args.encoders:
 
-
             processed_data=ecnoder_preprocessor(
                 encoder=encoder,
                 cfg=all_config.global_cfg,
@@ -614,26 +656,61 @@ def main():
                 logger.info("Training %s", model.upper())
                 logger.info("="*20)
 
+                final_model_config = FinalModelConfig(
+                    name=model.upper(),
+                    encoder=encoder.upper(),
+                    mode=all_args.tuning_mode,
+                    variant=variant.upper()
+                )
+
+                results_filename = f"{model}_{variant}_{all_args.tuning_mode}_" \
+                   f"{encoder}_{timestamp}.yaml"
+
+
                 if all_args.tuning_mode == "default":
 
                     logger.info("Using default configuration")
 
                     results = (
-                        DefaultTuner(
+                        DefaultTrainer(
                             cfg=all_config.global_cfg, data=processed_data, model=model
                         )
                         .default_results()
                     )
-                    if results.best_iteration is not None:
+                    if results.metrics.best_iteration is not None:
                         logger.info(
                             "===>>> Best Iteration: %.4f",
-                            results.best_iteration
+                            results.metrics.best_iteration
                         )
-                    logger.info("===>>> RMSE: %.4f", results.rmse)
-                    logger.info("===>>> R²: %.4f", results.r2)
-                    logger.info("===>>> MBE: %.4f\n", results.mbe)
+                    logger.info("===>>> RMSE: %.4f", results.metrics.rmse)
+                    logger.info("===>>> R²: %.4f", results.metrics.r2)
+                    logger.info("===>>> MBE: %.4f\n", results.metrics.mbe)
+                    logger.info('Saving results to %s.', results_filename)
 
-    logger.info("Done!!!")
+
+                    experiment_results=asdict(
+                        ExperimentResults(
+                            model=final_model_config,
+                            performance=results,
+                            config={
+                                'seed': all_config.global_cfg.seed,
+                                'timestamp': timestamp
+                            }
+                        )
+                    )
+
+                    with open(results_filename, "w", encoding="utf-8") as f:
+                        yaml.dump(
+                            experiment_results, f, default_flow_style=False,
+                            sort_keys=False, allow_unicode=True
+                        )
+                else:
+                    pass
+
+
+
+
+    logger.info("Modeling complete!!!")
 
 
 if __name__ == "__main__":

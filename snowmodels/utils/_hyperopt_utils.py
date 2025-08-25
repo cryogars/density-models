@@ -197,7 +197,9 @@ class DefaultTuner:
             params = {
                 'objective': 'regression',
                 'metric': ['rmse'],
-                'random_state': self.cfg.seed
+                'random_state': self.cfg.seed,
+                "force_col_wise": True,
+                "verbosity": self.cfg.verbosity
             }
             train_data = lgb.Dataset(self.data.x_train, label=self.data.y_train)
             val_data = lgb.Dataset(self.data.x_val, label=self.data.y_val, reference=train_data)
@@ -219,13 +221,16 @@ class DefaultTuner:
             return self._calculate_metrics(self.data.y_val, y_pred, model.best_iteration)
 
         if self.model == 'xgboost':
+            logger = logging.getLogger(__name__)
             dtrain = xgb.DMatrix(self.data.x_train, label=self.data.y_train)
             dval = xgb.DMatrix(self.data.x_val, label=self.data.y_val)
 
             params = {
                 'objective': 'reg:squarederror',
-                'random_state': self.cfg.seed
+                'random_state': self.cfg.seed,
+                "device": XGB_DEVICE
             }
+            logger.info("XGBoost will run on %s", XGB_DEVICE.upper())
 
             early_stopping = xgb.callback.EarlyStopping(
                 rounds=self.cfg.early_stopping_rounds,
@@ -490,10 +495,10 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        '--model', 
+        '--models', 
         nargs='+',
         type=str,
-        default=['extratrees'], 
+        default=['extratrees'],
         choices=['rf', 'extratrees', 'lightgbm', 'xgboost'],
         help='Model(s) to optimize'
     )
@@ -530,9 +535,8 @@ def parse_arguments():
 
     parser.add_argument(
         '--tuning-mode',
-        nargs = '+',
         type=str,
-        default = ['default'],
+        default = 'default',
         choices = ['default', 'tune'],
         help='Whether to tune or use default configuration'
     )
@@ -571,35 +575,30 @@ def main():
             )
             logger.info("Features: %s", processed_data.x_train.columns.to_list())
             logger.info("  X_train shape: %s", processed_data.x_train.shape)
-            logger.info("  X_val shape: %s", processed_data.x_val.shape)
-            logger.info("===> Onto model training...")
 
-            for model in all_args.model:
-                for mode in all_args.tuning_mode:
-                    if mode == "default" :
-                        if model in SKLEARN_MODELS:
-                            logger.info("Fitting %s using default configuration", model)
-                        elif model in BOOSTING_MODELS:
-                            logger.info(
-                                "Fitting %s using default configuration "
-                                "(1k trees and %s early stopping)",
-                                model, all_config.global_cfg.early_stopping_rounds
-                            )
+            for model in all_args.models:
+                logger.info("="*20)
+                logger.info("Training %s", model.upper())
+                logger.info("="*20)
 
-                        results = (
-                            DefaultTuner(
-                                cfg=all_config.global_cfg, data=processed_data, model=model
-                            )
-                            .train_and_evaluate()
+                if all_args.tuning_mode == "default":
+
+                    logger.info("Using default configuration")
+
+                    results = (
+                        DefaultTuner(
+                            cfg=all_config.global_cfg, data=processed_data, model=model
                         )
-                        if results.best_iteration is not None:
-                            logger.info(
-                                "=======>>>>>> Best Iteration: %.4f",
-                                results.best_iteration
-                            )
-                        logger.info("=======>>>>>> RMSE: %.4f", results.rmse)
-                        logger.info("=======>>>>>> R²: %.4f", results.r2)
-                        logger.info("=======>>>>>> MBE: %.4f\n", results.mbe)
+                        .train_and_evaluate()
+                    )
+                    if results.best_iteration is not None:
+                        logger.info(
+                            "===>>> Best Iteration: %.4f",
+                            results.best_iteration
+                        )
+                    logger.info("===>>> RMSE: %.4f", results.rmse)
+                    logger.info("===>>> R²: %.4f", results.r2)
+                    logger.info("===>>> MBE: %.4f\n", results.mbe)
 
     logger.info("Done!!!")
 

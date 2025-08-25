@@ -63,6 +63,7 @@ class DataSplits:
     x_train_nogeo: Optional[pd.DataFrame] = None
     x_val_nogeo: Optional[pd.DataFrame] = None
 
+
 @dataclass
 class ParamSpec:
     """Container for hyperparameter spec"""
@@ -152,108 +153,140 @@ class DefaultTuner:
                 f"{self.model} not supported. Choose from {SKLEARN_MODELS + BOOSTING_MODELS}"
             ) from ase
 
-
-    def _calculate_metrics(self, y_true, y_pred, best_iteration=None) -> EvaluationMetrics:
-
-        return EvaluationMetrics(
-            rmse = rmse(y_true=y_true, y_pred=y_pred),
-            r2 = r2_score(y_true=y_true, y_pred=y_pred),
-            mbe = np.mean(y_pred - y_true),
-            best_iteration = best_iteration
-        )
-
-
-    def train_and_evaluate(self) -> EvaluationMetrics:
-
-        """Train and evaluate ml models"""
-
-        if self.model == 'extratrees':
-            model = ExtraTreesRegressor(
-                random_state=self.cfg.seed,
-                n_jobs=self.cfg.n_jobs
-            )
-            model.fit(
-                self.data.x_train, self.data.y_train
-            )
-
-            y_pred = model.predict(self.data.x_val)
-
-            return self._calculate_metrics(self.data.y_val, y_pred)
-
-        if self.model == 'rf':
-            model = RandomForestRegressor(
-                random_state=self.cfg.seed,
-                n_jobs=self.cfg.n_jobs
-            )
-            model.fit(
-                self.data.x_train, self.data.y_train
-            )
-
-            y_pred = model.predict(self.data.x_val)
-
-            return self._calculate_metrics(self.data.y_val, y_pred)
+    def default_params(self) -> dict | None:
+        """Get default params"""
+        if self.model in SKLEARN_MODELS:
+            return {
+                'random_state': self.cfg.seed,
+                'n_jobs': self.cfg.n_jobs
+            }
 
         if self.model == 'lightgbm':
-            params = {
+            return {
                 'objective': 'regression',
                 'metric': ['rmse'],
                 'random_state': self.cfg.seed,
                 "force_col_wise": True,
                 "verbosity": self.cfg.verbosity
             }
-            train_data = lgb.Dataset(self.data.x_train, label=self.data.y_train)
-            val_data = lgb.Dataset(self.data.x_val, label=self.data.y_val, reference=train_data)
-
-            model = lgb.train(
-                params,
-                train_data,
-                valid_sets=[train_data, val_data],
-                valid_names=['train', 'valid'],
-                callbacks=[
-                    lgb.early_stopping(stopping_rounds=self.cfg.early_stopping_rounds),
-                    lgb.log_evaluation(period=0)
-                ],
-                num_boost_round=1000
-            )
-
-            y_pred = model.predict(self.data.x_val, num_iteration=model.best_iteration)
-
-            return self._calculate_metrics(self.data.y_val, y_pred, model.best_iteration)
 
         if self.model == 'xgboost':
-            logger = logging.getLogger(__name__)
-            dtrain = xgb.DMatrix(self.data.x_train, label=self.data.y_train)
-            dval = xgb.DMatrix(self.data.x_val, label=self.data.y_val)
-
-            params = {
+            return {
                 'objective': 'reg:squarederror',
                 'random_state': self.cfg.seed,
                 "device": XGB_DEVICE
             }
-            logger.info("XGBoost will run on %s", XGB_DEVICE.upper())
-
-            early_stopping = xgb.callback.EarlyStopping(
-                rounds=self.cfg.early_stopping_rounds,
-                metric_name='rmse',
-                data_name='val',
-                maximize=False,
-                save_best=True
-            )
-
-            model = xgb.train(
-                params,
-                dtrain,
-                num_boost_round=1000,
-                evals=[(dtrain, 'train'), (dval, 'val')],
-                callbacks=[early_stopping],
-                verbose_eval=False
-            )
-
-            y_pred = model.predict(dval)
-
-            return self._calculate_metrics(self.data.y_val, y_pred, model.best_iteration)
 
         return None
+
+
+    def default_results(self) -> EvaluationMetrics:
+
+        """Train and evaluate ml models using default settings"""
+
+        return train_and_evaluate_models(
+            model_name=self.model,
+            params=self.default_params(),
+            cfg=self.cfg, data=self.data
+        )
+
+def compute_metrics_for_logging(y_true, y_pred, best_iteration=None) -> EvaluationMetrics:
+    """A function that computes RMSE, R², and MBE"""
+
+    return EvaluationMetrics(
+        rmse = rmse(y_true=y_true, y_pred=y_pred),
+        r2 = r2_score(y_true=y_true, y_pred=y_pred),
+        mbe = np.mean(y_pred - y_true),
+        best_iteration = best_iteration
+
+    )
+
+
+def train_and_evaluate_models(
+        model_name: Literal['rf', 'extratrees', 'lightgbm', 'xgboost'],
+        params, cfg: GlobalConfig, data: DataSplits
+) -> EvaluationMetrics:
+    """A container to train all models"""
+
+    if model_name == 'extratrees':
+        model = ExtraTreesRegressor(**params)
+        model.fit(
+            data.x_train, data.y_train
+        )
+        y_pred = model.predict(data.x_val)
+
+        return compute_metrics_for_logging(
+            y_true=data.y_val, y_pred=y_pred
+        )
+
+    if model_name == 'rf':
+
+        model = RandomForestRegressor(**params)
+        model.fit(
+            data.x_train, data.y_train
+        )
+
+        y_pred = model.predict(data.x_val)
+
+        return compute_metrics_for_logging(
+            y_true=data.y_val, y_pred=y_pred
+        )
+
+    if model_name == 'lightgbm':
+        train_data = lgb.Dataset(data.x_train, label=data.y_train)
+        val_data = lgb.Dataset(data.x_val, label=data.y_val, reference=train_data)
+
+        model = lgb.train(
+            params,
+            train_data,
+            valid_sets=[train_data, val_data],
+            valid_names=['train', 'valid'],
+            callbacks=[
+                lgb.early_stopping(
+                    stopping_rounds=cfg.early_stopping_rounds, verbose=False
+                ),
+                lgb.log_evaluation(period=0)
+            ],
+            num_boost_round=1500
+        )
+
+        y_pred = model.predict(data.x_val, num_iteration=model.best_iteration)
+
+        return compute_metrics_for_logging(
+            y_true=data.y_val, y_pred=y_pred, best_iteration=model.best_iteration
+        )
+
+    if model_name == 'xgboost':
+
+        logger = logging.getLogger(__name__)
+        dtrain = xgb.DMatrix(data.x_train, label=data.y_train)
+        dval = xgb.DMatrix(data.x_val, label=data.y_val)
+        logger.info("XGBoost will run on %s", XGB_DEVICE.upper())
+
+        early_stopping = xgb.callback.EarlyStopping(
+            rounds=cfg.early_stopping_rounds,
+            metric_name='rmse',
+            data_name='val',
+            maximize=False,
+            save_best=True
+        )
+
+        model = xgb.train(
+            params,
+            dtrain,
+            num_boost_round=1500,
+            evals=[(dtrain, 'train'), (dval, 'val')],
+            callbacks=[early_stopping],
+            verbose_eval=False
+        )
+
+        y_pred = model.predict(dval)
+
+        return compute_metrics_for_logging(
+            y_true=data.y_val, y_pred=y_pred, best_iteration=model.best_iteration
+        )
+
+    return None
 
 
 def setup_logging():
@@ -472,7 +505,7 @@ def load_config(config_path: str = "hyperparameters.yaml") -> HyperparamConfig:
         # parse global section
         global_config = GlobalConfig(**raw_config['global'])
 
-            # parse models section
+        # parse models section
         models = {}
         for model_name, params in raw_config["models"].items():
             param_specs = {
@@ -589,7 +622,7 @@ def main():
                         DefaultTuner(
                             cfg=all_config.global_cfg, data=processed_data, model=model
                         )
-                        .train_and_evaluate()
+                        .default_results()
                     )
                     if results.best_iteration is not None:
                         logger.info(

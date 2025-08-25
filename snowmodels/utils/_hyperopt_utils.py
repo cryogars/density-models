@@ -490,6 +490,15 @@ def parse_arguments():
     )
 
     parser.add_argument(
+        '--model', 
+        nargs='+',
+        type=str,
+        default=['extratrees'], 
+        choices=['rf', 'extratrees', 'lightgbm', 'xgboost'],
+        help='Model(s) to optimize'
+    )
+
+    parser.add_argument(
         '--variants', type = str,
         nargs = '+',
         default = ['main', 'climate_7d', 'climate_14d'],
@@ -563,14 +572,35 @@ def main():
             logger.info("Features: %s", processed_data.x_train.columns.to_list())
             logger.info("  X_train shape: %s", processed_data.x_train.shape)
             logger.info("  X_val shape: %s", processed_data.x_val.shape)
-            model=ExtraTreesRegressor(random_state=100, n_jobs=-1)
-            model.fit(processed_data.x_train, processed_data.y_train)
-            rmse_val = rmse(y_pred=model.predict(processed_data.x_val), y_true=processed_data.y_val)
-            r2_val = r2_score(y_pred=model.predict(processed_data.x_val), y_true=processed_data.y_val)
-            logger.info("======>>>>>> RMSE: %.4f\t R2: %.4f <<<<<<<<======\n\n", rmse_val, r2_val)
+            logger.info("===> Onto model training...")
 
-            # logger.info("data head printed at %s", timestamp)
-            # logger.info(processed_data.x_train.head())
+            for model in all_args.model:
+                for mode in all_args.tuning_mode:
+                    if mode == "default" :
+                        if model in SKLEARN_MODELS:
+                            logger.info("Fitting %s using default configuration", model)
+                        elif model in BOOSTING_MODELS:
+                            logger.info(
+                                "Fitting %s using default configuration "
+                                "(1k trees and %s early stopping)",
+                                model, all_config.global_cfg.early_stopping_rounds
+                            )
+
+                        results = (
+                            DefaultTuner(
+                                cfg=all_config.global_cfg, data=processed_data, model=model
+                            )
+                            .train_and_evaluate()
+                        )
+                        if results.best_iteration is not None:
+                            logger.info(
+                                "=======>>>>>> Best Iteration: %.4f",
+                                results.best_iteration
+                            )
+                        logger.info("=======>>>>>> RMSE: %.4f", results.rmse)
+                        logger.info("=======>>>>>> R²: %.4f", results.r2)
+                        logger.info("=======>>>>>> MBE: %.4f\n", results.mbe)
+
     logger.info("Done!!!")
 
 

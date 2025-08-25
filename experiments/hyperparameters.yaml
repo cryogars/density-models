@@ -4,7 +4,7 @@
 global:
   seed: 100
   n_jobs: -1
-  early_stopping_rounds: 20
+  early_stopping_rounds: 30
   verbosity: -1
 
 

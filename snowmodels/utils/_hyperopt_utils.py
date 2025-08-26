@@ -76,6 +76,7 @@ class ParamSpec:
     step: Optional[int] = None
     log: bool = False
 
+
 @dataclass
 class ModelConfig:
     """
@@ -131,6 +132,26 @@ class FinalModelConfig:
     variant: str
     encoder: str
     mode: str
+
+
+@dataclass
+class InlineDefaultConfig:
+    """Container for inline default config"""
+
+    final_model_config: FinalModelConfig
+    timestamp: str
+    folder: Path
+
+@dataclass
+class InlineTuneConfig:
+    """Container for inline tuning config"""
+
+    final_model_config: FinalModelConfig
+    timestamp: str
+    folder: Path
+    storage_url: str
+    n_trials: int
+
 
 @dataclass
 class PerformanceConfig:
@@ -672,6 +693,132 @@ def parse_arguments():
     return parser.parse_args()
 
 
+def run_default_inline(
+        global_cfg: GlobalConfig,
+        data: DataSplits,
+        inline_default: InlineDefaultConfig
+) -> ExperimentResults:
+    """Function to run default config inline"""
+
+    logger = logging.getLogger(__name__)
+    logger.info("Using default configuration")
+
+    model = inline_default.final_model_config.name
+    variant = inline_default.final_model_config.variant
+    mode = inline_default.final_model_config.mode
+    encoder = inline_default.final_model_config.encoder
+
+    filename = f"{model}_{variant}_{mode}_" \
+        f"{encoder}_{inline_default.timestamp}.yaml"
+    results_filename = inline_default.folder / filename
+
+    results = (
+        DefaultTrainer(
+            cfg=global_cfg, data=data,
+            model=model
+        )
+        .default_results()
+    )
+    if results.metrics.best_iteration is not None:
+        logger.info(
+            "===>>> Best Iteration: %.4f",
+            results.metrics.best_iteration
+        )
+    logger.info("Trainin finished with the following metrics:")
+    logger.info("===>>> RMSE: %.4f", results.metrics.rmse)
+    logger.info("===>>> R²: %.4f", results.metrics.r2)
+    logger.info("===>>> MBE: %.4f\n", results.metrics.mbe)
+    logger.info('Saving results to %s.', results_filename)
+
+
+    experiment_results=asdict(
+        ExperimentResults(
+            model=inline_default.final_model_config,
+            performance=results,
+            config={
+                'seed': global_cfg.seed,
+                'timestamp': inline_default.timestamp
+            }
+        )
+    )
+
+    with open(results_filename, "w", encoding="utf-8") as f:
+        yaml.dump(
+            experiment_results, f, default_flow_style=False,
+            sort_keys=False, allow_unicode=True
+        )
+
+def tune_inline(
+        data: DataSplits,
+        cfg: HyperparamConfig,
+        inline_tune: InlineTuneConfig
+):
+    """Function to tune hyperparameters inline"""
+    logger = logging.getLogger(__name__)
+
+    logger.info("Tunning for optimal hyperparametr configuration...")
+    logger.info('Number of trials: %s', inline_tune.n_trials)
+
+    model = inline_tune.final_model_config.name
+    variant = inline_tune.final_model_config.variant
+    encoder = inline_tune.final_model_config.encoder
+
+    filename = f"{model}_{variant}_{inline_tune.final_model_config.mode}_" \
+        f"{encoder}_{inline_tune.timestamp}.yaml"
+    results_filename = inline_tune.folder / filename
+
+    objective = Objective(
+        data=data,
+        model_name=model,
+        config=cfg
+    )
+
+    study = optuna.create_study(
+        direction="minimize",
+        study_name=f"{model}_{variant}_{encoder}",
+        storage=inline_tune.storage_url,
+        load_if_exists=True,
+        sampler=optuna.samplers.TPESampler(seed=cfg.global_cfg.seed)
+    )
+
+    study.optimize(
+        objective, n_trials=inline_tune.n_trials,
+        show_progress_bar=True
+    )
+
+    evaluation_metrics = EvaluationMetrics(
+        rmse=study.best_trial.value,
+        r2=study.best_trial.user_attrs['r2'],
+        mbe=study.best_trial.user_attrs["mbe"],
+        best_iteration=study.best_trial.user_attrs.get("best_iteration", None)
+    )
+
+    performance_config = PerformanceConfig(
+        metrics=evaluation_metrics,
+        hyperparameters=study.best_trial.params
+    )
+
+    experiment_results = ExperimentResults(
+        model=inline_tune.final_model_config,
+        performance=performance_config,
+        config={
+            'seed': cfg.global_cfg.seed,
+            'timestamp': inline_tune.timestamp
+        }
+    )
+
+    logger.info("Trainin finished with the following metrics:")
+    logger.info("===>>> Best RMSE: %.4f", evaluation_metrics.rmse)
+    logger.info("===>>> Best R²: %.4f", evaluation_metrics.r2)
+    logger.info("===>>> Best MBE: %.4f\n", evaluation_metrics.mbe)
+    logger.info('Saving results to %s.', results_filename)
+
+    with open(results_filename, "w", encoding="utf-8") as f:
+        yaml.dump(
+            asdict(experiment_results), f, default_flow_style=False,
+            sort_keys=False, allow_unicode=True
+        )
+
 def main():
     """Main execution function"""
 
@@ -716,94 +863,32 @@ def main():
                     variant=variant.upper()
                 )
 
-                filename = f"{model}_{variant}_{all_args.tuning_mode}_" \
-                   f"{encoder}_{timestamp}.yaml"
-
-                results_filename = folder / filename
-
                 if all_args.tuning_mode == "default":
-
-                    logger.info("Using default configuration")
-
-                    results = (
-                        DefaultTrainer(
-                            cfg=all_config.global_cfg, data=processed_data, model=model
-                        )
-                        .default_results()
-                    )
-                    if results.metrics.best_iteration is not None:
-                        logger.info(
-                            "===>>> Best Iteration: %.4f",
-                            results.metrics.best_iteration
-                        )
-                    logger.info("===>>> RMSE: %.4f", results.metrics.rmse)
-                    logger.info("===>>> R²: %.4f", results.metrics.r2)
-                    logger.info("===>>> MBE: %.4f\n", results.metrics.mbe)
-                    logger.info('Saving results to %s.', results_filename)
-
-
-                    experiment_results=asdict(
-                        ExperimentResults(
-                            model=final_model_config,
-                            performance=results,
-                            config={
-                                'seed': all_config.global_cfg.seed,
-                                'timestamp': timestamp
-                            }
-                        )
+                    inline_default = InlineDefaultConfig(
+                        final_model_config=final_model_config,
+                        timestamp=timestamp,
+                        folder=folder
                     )
 
-                    with open(results_filename, "w", encoding="utf-8") as f:
-                        yaml.dump(
-                            experiment_results, f, default_flow_style=False,
-                            sort_keys=False, allow_unicode=True
-                        )
+                    run_default_inline(
+                        global_cfg=all_config.global_cfg,
+                        data=processed_data, 
+                        inline_default=inline_default
+                    )
                 else:
-                    logger.info("Tunning for optimal hyperparametr configuration...")
-                    logger.info('Number of trials: %s', all_args.n_trails)
-
-
-                    objective = Objective(
-                        data=processed_data,
-                        model_name=model,
-                        config=all_config
+                    inline_tune = InlineTuneConfig(
+                        final_model_config=final_model_config,
+                        timestamp=timestamp,
+                        folder=folder,
+                        storage_url=all_args.storage_url,
+                        n_trials=all_args.n_trials
                     )
 
-                    study = optuna.create_study(
-                        direction="minimize",
-                        study_name=f"{model}_{variant}_{encoder}",
-                        storage=all_args.storage_url,
-                        load_if_exists=True,
-                        sampler=optuna.samplers.TPESampler(seed=all_config.global_cfg.seed)
+                    tune_inline(
+                        data=processed_data, cfg=all_config,
+                        inline_tune=inline_tune
                     )
 
-                    study.optimize(
-                        objective, n_trials=all_args.n_trials,
-                        show_progress_bar=True
-                    )
-
-                    experiment_results = ExperimentResults(
-                        model=final_model_config,
-                        performance=PerformanceConfig(
-                            metrics=EvaluationMetrics(
-                                rmse=study.best_trial.value,
-                                r2=study.best_trial.user_attrs['r2'],
-                                mbe=study.best_trial.user_attrs["mbe"],
-                                best_iteration=study.best_trial.user_attrs.get("best_iteration", None)
-                            ),
-                            hyperparameters=study.best_trial.params
-                        ),
-                        config={
-                            'seed': all_config.global_cfg.seed,
-                            'timestamp': timestamp
-                        }
-                    )
-
-                    with open(results_filename, "w", encoding="utf-8") as f:
-                        yaml.dump(
-                            experiment_results, f, default_flow_style=False,
-                            sort_keys=False, allow_unicode=True
-                        )
 
     logger.info("Modeling done, see %s for results", folder)
 

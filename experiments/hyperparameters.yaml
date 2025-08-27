@@ -30,7 +30,7 @@ models:
       high: 25
 
 
-  extratrees:  # Extra Trees
+  extratrees:
     n_estimators:
       type: "int"
       low: 100
@@ -51,7 +51,7 @@ models:
 
 
 
-  lightgbm:  # LightGBM Native API
+  lightgbm:
     num_leaves:
       type: "int"
       low: 50
@@ -82,7 +82,7 @@ models:
 
 
 
-  xgboost:  # XGBoost Native API
+  xgboost:
     eta:
       type: "float"
       low: 0.01

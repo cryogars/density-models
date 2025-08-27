@@ -35,7 +35,7 @@ models:
       type: "int"
       low: 100
       high: 300
-      step: 500
+      step: 50
     max_depth:
       type: "int"
       low: 5

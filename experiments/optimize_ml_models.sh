@@ -138,12 +138,12 @@ esac
 # =================
 
 echo ""
-echo "============================================================"
+echo "=========================================="
 echo "ALL EXPERIMENTS COMPLETED!"
-echo "============================================================"
+echo "=========================================="
 echo "Time: $(date)"
 echo ""
-echo "Results saved to:"
+echo "Results (tuning only) saved to:"
 echo "  - Database: $DB_PATH"
 echo "  - Logs: $LOG_DIR/"
 echo ""

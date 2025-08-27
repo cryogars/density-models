@@ -1,3 +1,6 @@
+
+"""This module contains modeling utils"""
+
 import datetime
 from typing import Dict, Union 
 from abc import ABC, abstractmethod
@@ -24,7 +27,7 @@ SplitResult = namedtuple('SplitResult', [
 
 
 # Set the seed for reproducibility
-SEED = 10
+SEED = 100
 
 class DataSplitter(ABC):
 
@@ -47,30 +50,30 @@ class DataSplitter(ABC):
             test_df: pd.DataFrame,
             temp_df: pd.DataFrame
     ) -> SplitResult:
-        
-         """Helper method to prepare the output as a named tuple"""
 
-         # Split features and target
-         X_train, y_train = train_df.drop('Snow_Density', axis=1), train_df.Snow_Density
-         X_val, y_val = val_df.drop('Snow_Density', axis=1), val_df.Snow_Density
-         X_test, y_test = test_df.drop('Snow_Density', axis=1), test_df.Snow_Density
-         X_temp, y_temp = temp_df.drop('Snow_Density', axis=1), temp_df.Snow_Density
+        """Helper method to prepare the output as a named tuple"""
 
-         return SplitResult(
-            X_train=X_train,
-            X_val=X_val,
-            X_test=X_test,
-            X_temp=X_temp,
-            y_train=y_train,
-            y_val=y_val,
-            y_test=y_test,
-            y_temp=y_temp,
-            train_df=train_df,
-            val_df=val_df,
-            test_df=test_df,
-            temp_df=temp_df
+        # Split features and target
+        X_train, y_train = train_df.drop('Snow_Density', axis=1), train_df.Snow_Density
+        X_val, y_val = val_df.drop('Snow_Density', axis=1), val_df.Snow_Density
+        X_test, y_test = test_df.drop('Snow_Density', axis=1), test_df.Snow_Density
+        X_temp, y_temp = temp_df.drop('Snow_Density', axis=1), temp_df.Snow_Density
+
+        return SplitResult(
+        X_train=X_train,
+        X_val=X_val,
+        X_test=X_test,
+        X_temp=X_temp,
+        y_train=y_train,
+        y_val=y_val,
+        y_test=y_test,
+        y_temp=y_temp,
+        train_df=train_df,
+        val_df=val_df,
+        test_df=test_df,
+        temp_df=temp_df
         )
-  
+
     def get_split_info(self, splits: SplitResult) -> Dict[str, any]:
         """Get information about the splits"""
         return {
@@ -91,70 +94,68 @@ class SpatialSplitter(DataSplitter):
     
     def split(self, station_metadata: pd.DataFrame, df: pd.DataFrame) -> SplitResult:
         strata = station_metadata.Snow_Class
-        
+
         # Split stations first
         temp_stations, test_stations = train_test_split(
-            station_metadata, test_size=0.20, 
+            station_metadata, test_size=150,
             stratify=strata, random_state=self.seed
         )
-        
+
         strata2 = temp_stations.Snow_Class
         train_stations, val_stations = train_test_split(
-            temp_stations, test_size=1/8, 
+            temp_stations, test_size=114,
             stratify=strata2, random_state=self.seed
         )
-        
+
         # Get data for each station set
         train_df = df.query("Station_Name in @train_stations.Station_Name")
         val_df = df.query("Station_Name in @val_stations.Station_Name")
         test_df = df.query("Station_Name in @test_stations.Station_Name")
         temp_df = df.query("Station_Name in @temp_stations.Station_Name")
-        
+
         return self._prepare_output(train_df, val_df, test_df, temp_df)
 
 class HybridSplitter(DataSplitter):
     """Strategy 2: Stratified Random train/val + spatial test"""
-    
+
     def split(self, station_metadata: pd.DataFrame, df: pd.DataFrame) -> SplitResult:
         strata = station_metadata.Snow_Class
-        
+
         # First, spatial split for test set (20% of stations)
         train_val_stations, test_stations = train_test_split(
-            station_metadata, test_size=0.20,
+            station_metadata, test_size=150,
             stratify=strata, random_state=self.seed
         )
-        
+
         # Get data from train/val stations and test stations
         train_val_data = df.query("Station_Name in @train_val_stations.Station_Name")
         test_df = df.query("Station_Name in @test_stations.Station_Name")
-        
-        # Then, temporal split within train/val data
-        strata2 = train_val_data.Snow_Class
-        train_df, val_df = train_test_split(
-            train_val_data, test_size=0.125,  # 10% of total
-            stratify=strata2, random_state=self.seed
-        )
-        
+
+        cutoff_year = 2021
+
+        train_df = train_val_data[train_val_data["Date"].dt.year <= cutoff_year]
+        val_df = train_val_data[train_val_data["Date"].dt.year > cutoff_year]
+
         temp_df = train_val_data
-        
+
         return self._prepare_output(train_df, val_df, test_df, temp_df)
 
 
 class SplitterFactory:
     """Factory class to create splitters"""
-    
+
     @staticmethod
     def create_splitter(strategy: str, seed: int = SEED) -> DataSplitter:
         splitters = {
             'spatial': SpatialSplitter,
             'hybrid': HybridSplitter
         }
-        
+
         if strategy not in splitters:
             raise ValueError(f"Unknown strategy: {strategy}. Available: {list(splitters.keys())}")
-        
+
         return splitters[strategy](seed=seed)
-    
+
     @staticmethod
     def get_all_strategies() -> list:
         return ['spatial', 'hybrid']
@@ -186,14 +187,14 @@ def evaluate_model(
     A pandas DataFrame containing the RMSE, MBE and R2 metrics for the model.
     """
 
-    RMSE = root_mean_squared_error(y_true=y_true, y_pred=y_pred)
-    MBE  = np.mean(y_pred- y_true)
-    RSQ  = r2_score(y_true=y_true, y_pred=y_pred)
-    
+    rmse = root_mean_squared_error(y_true=y_true, y_pred=y_pred)
+    mbe  = np.mean(y_pred- y_true)
+    rsq  = r2_score(y_true=y_true, y_pred=y_pred)
+
     score_df = pd.DataFrame({
-        model_name: [RMSE, MBE, RSQ]
+        model_name: [rmse, mbe, rsq]
     }, index = ['RMSE', 'MBE', 'RSQ'])
-    
+
     return score_df
 
 
@@ -234,7 +235,6 @@ def validate_DOY(x: int | float | str | pd.Timestamp | datetime.datetime, origin
             raise ValueError(f"Could not convert {x} to a valid DOY. {e}") from e
     else:
         raise TypeError(f"Input type is not supported. Expected types are int, float, str, datetime.datetime, or pd.Timestamp, got {type(x).__name__}.")
-   
 
 
 def compare_multiple_models(preds_df: pd.DataFrame, y_true: str) -> pd.DataFrame:

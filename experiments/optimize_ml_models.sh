@@ -68,7 +68,7 @@ run_experiment() {
         --storage-url $DB_PATH \
         2>&1 | tee -a "$LOG_DIR/$log_filename"
         
-    echo "Completed: $tuning_mode experiment at $(date)"
+    echo "[BASH] Completed: $tuning_mode experiment at $(date)"
     echo ""
 }
 
@@ -143,7 +143,7 @@ echo "ALL EXPERIMENTS COMPLETED!"
 echo "=========================================="
 echo "Time: $(date)"
 echo ""
-echo "Results (tuning only) saved to:"
+echo "Results (db for tuning only) saved to:"
 echo "  - Database: $DB_PATH"
 echo "  - Logs: $LOG_DIR/"
 echo ""

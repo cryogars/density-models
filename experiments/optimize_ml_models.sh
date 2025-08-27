@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # ======================================================
 # Hyperparameter Optimization for Snow Density Models
 # ======================================================
@@ -13,163 +12,130 @@ DATA_PATH="../data/data_splits.pkl"
 CONFIG_PATH="hyperparameters.yaml"
 DB_PATH="sqlite:///optuna_studies.db"
 LOG_DIR="logs"
-RESULTS_DIR="results"
 
 # Create directories if they don't exist
 mkdir -p $LOG_DIR
-mkdir -p $RESULTS_DIR
-mkdir -p "best_config"
 
 # Experiment settings
 N_TRIALS=100  
 MODELS=("lightgbm" "xgboost" "rf" "extratrees")
-VARIANTS=("main" "climate_7d" "climate_14d" "main_geo" "climate_7d_geo" "climate_14d_geo")
+VARIANTS=("main" "climate_7d" "climate_14d")
 ENCODERS=("onehot" "target" "catboost")
-EVAL_METHODS=("cv" "validation")
 
-# ============================================================================
+# Test settings (smaller subset)
+TEST_MODELS=("lightgbm")
+TEST_VARIANTS=("main")
+TEST_ENCODERS=("catboost")
+TEST_TRIALS=10
+
+# ===================
 # Helper Functions
-# ============================================================================
+# ===================
 
 run_experiment() {
-    local model=$1
+    local models="$1"
     local n_trials=$2
-    local variants=$3
-    local encoders=$4
-    local eval_methods=$5
+    local variants="$3"
+    local encoders="$4"
+    local tuning_mode="$5"
     
+    local tuning_mode_=$(echo "$tuning_mode" | tr ' ' '_')
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    
+    local log_filename="${tuning_mode_}_${timestamp}.log"
+    
+    echo "==============================================================================" | tee -a "$LOG_DIR/$log_filename"
+    echo "$(date '+%Y-%m-%d %H:%M:%S,%3N') - INFO - Log file: $log_filename" | tee -a "$LOG_DIR/$log_filename"
+    echo "==============================================================================" | tee -a "$LOG_DIR/$log_filename"
+        
     echo "============================================================"
-    echo "Starting experiment: $model"
+    echo "Starting experiment with models: $models"
     echo "Variants: $variants"
     echo "Encoders: $encoders"
-    echo "Eval methods: $eval_methods"
+    echo "Tuning Mode: $tuning_mode"
     echo "Trials: $n_trials"
     echo "Time: $(date)"
     echo "============================================================"
-    
+        
     python $SCRIPT_PATH \
-        --model $model \
-        --model-variants $variants \
+        --models $models \
+        --variants $variants \
         --encoders $encoders \
-        --eval-methods $eval_methods \
+        --tuning-mode $tuning_mode \
         --n-trials $n_trials \
         --data-path $DATA_PATH \
-        --config $CONFIG_PATH \
+        --config-path $CONFIG_PATH \
         --storage-url $DB_PATH \
-        2>&1 | tee -a "$LOG_DIR/${model}_$(date +%Y%m%d_%H%M%S).log"
-    
-    echo "Completed: $model at $(date)"
+        2>&1 | tee -a "$LOG_DIR/$log_filename"
+        
+    echo "Completed: $tuning_mode experiment at $(date)"
     echo ""
 }
 
-# ============================================================================
+# =======================
 # Main Execution Options
-# ============================================================================
+# =======================
 
 # Check command line argument for run mode
 RUN_MODE=${1:-"all"}
 
 case $RUN_MODE in
-    "quick")
-        echo "Running QUICK TEST (10 trials, main variant only)"
-        echo "================================================"
-        for model in "${MODELS[@]}"; do
-            run_experiment $model 10 "main" "catboost" "validation"
-        done
-        ;;
-    
-    "main_only")
-        echo "Running MAIN VARIANT ONLY (all models, 100 trials)"
+    "test")
+        echo "Running TEST mode - Quick validation (default only)"
         echo "=================================================="
-        for model in "${MODELS[@]}"; do
-            run_experiment $model $N_TRIALS "main main_geo" "onehot target catboost" "cv validation"
-        done
+        echo "Using: ${TEST_MODELS[*]} | ${TEST_VARIANTS[*]} | ${TEST_ENCODERS[*]} | $TEST_TRIALS trials"
+        echo ""
+        run_experiment "${TEST_MODELS[*]}" $TEST_TRIALS "${TEST_VARIANTS[*]}" "${TEST_ENCODERS[*]}" "default"
         ;;
-    
-    "climate_only")
-        echo "Running CLIMATE VARIANTS ONLY (all models, 100 trials)"
-        echo "======================================================="
-        for model in "${MODELS[@]}"; do
-            run_experiment $model $N_TRIALS "climate_7d climate_14d climate_7d_geo climate_14d_geo" "onehot target catboost" "cv validation"
-        done
+
+    "test-all")
+        echo "Running TEST mode - Both default and tune"
+        echo "========================================="
+        echo "Using: ${TEST_MODELS[*]} | ${TEST_VARIANTS[*]} | ${TEST_ENCODERS[*]} | $TEST_TRIALS trials each"
+        echo ""
+        echo "--- Running test DEFAULT mode ---"
+        run_experiment "${TEST_MODELS[*]}" $TEST_TRIALS "${TEST_VARIANTS[*]}" "${TEST_ENCODERS[*]}" "default"
+        echo ""
+        echo "--- Running test TUNE mode ---"
+        run_experiment "${TEST_MODELS[*]}" $TEST_TRIALS "${TEST_VARIANTS[*]}" "${TEST_ENCODERS[*]}" "tune"
         ;;
-    
-    "by_model")
-        echo "Running ONE MODEL AT A TIME (all variants, 100 trials)"
-        echo "======================================================"
-        for model in "${MODELS[@]}"; do
-            echo ">>> Processing $model with all variants <<<"
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d main_geo climate_7d_geo climate_14d_geo" "onehot target catboost" "cv validation"
-            echo ">>> Completed $model, moving to next model <<<"
-            sleep 5  # Brief pause between models
-        done
+
+    "default")
+        echo "Running the default setting"
+        echo "==========================="
+        run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "default"
         ;;
-    
-    "boosting_only")
-        echo "Running BOOSTING MODELS ONLY (LightGBM & XGBoost)"
-        echo "================================================="
-        for model in "lightgbm" "xgboost"; do
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d main_geo climate_7d_geo climate_14d_geo" "onehot target catboost" "cv validation"
-        done
-        ;;
-    
-    "trees_only")
-        echo "Running TREE MODELS ONLY (RF & ExtraTrees)"
-        echo "=========================================="
-        for model in "rf" "extratrees"; do
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d main_geo climate_7d_geo climate_14d_geo" "onehot target catboost" "cv validation"
-        done
-        ;;
-    
-    "cv_only")
-        echo "Running CV EVALUATION ONLY (all models)"
-        echo "======================================="
-        for model in "${MODELS[@]}"; do
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d main_geo climate_7d_geo climate_14d_geo" "onehot target catboost" "cv"
-        done
-        ;;
-    
-    "validation_only")
-        echo "Running VALIDATION EVALUATION ONLY (all models)"
-        echo "==============================================="
-        for model in "${MODELS[@]}"; do
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d main_geo climate_7d_geo climate_14d_geo" "onehot target catboost" "validation"
-        done
-        ;;
-    
-    "custom")
-        # For custom single experiment - edit as needed
-        echo "Running CUSTOM EXPERIMENT"
-        echo "========================"
-        run_experiment "lightgbm" 10 "main" "catboost" "validation"
-        ;;
-    
-    "all"|*)
-        echo "Running ALL EXPERIMENTS (all models, all variants, 100 trials each)"
-        echo "=================================================================="
-        echo "WARNING: This will take a long time!"
-        echo "Starting in 10 seconds... (Ctrl+C to cancel)"
-        sleep 10
         
-        for model in "${MODELS[@]}"; do
-            echo ""
-            echo "##################################################"
-            echo "# Processing Model: $model"
-            echo "##################################################"
-            run_experiment $model $N_TRIALS "main climate_7d climate_14d" "onehot target catboost" "cv validation"
-            
-            # Optional: pause between models to check results
-            if [ "$model" != "extratrees" ]; then
-                echo "Pausing for 30 seconds before next model..."
-                sleep 30
-            fi
-        done
+    "tune")
+        echo "Tuning ...."
+        echo "==========="
+        run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "tune"
+        ;;
+        
+    "all")
+        echo "Running both default and tune modes"
+        echo "==================================="
+        run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "default"
+        run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "tune"
+        ;;
+        
+    *)
+        echo "Unknown run mode: $RUN_MODE"
+        echo "Available modes:"
+        echo "  test     - Quick test with default mode only ($TEST_TRIALS trials)"
+        echo "  test-all - Quick test with both default and tune modes ($TEST_TRIALS trials each)"
+        echo "  default  - Run default hyperparameters (full scale)"
+        echo "  tune     - Run hyperparameter tuning (full scale)"
+        echo "  all      - Run both default and tune modes (full scale)"
+        echo ""
+        echo "Usage: $0 [test|test-all|default|tune|all]"
+        exit 1
         ;;
 esac
 
-# ============================================================================
+# =================
 # Post-processing
-# ============================================================================
+# =================
 
 echo ""
 echo "============================================================"
@@ -178,11 +144,9 @@ echo "============================================================"
 echo "Time: $(date)"
 echo ""
 echo "Results saved to:"
-echo "  - Database: optuna_studies.db"
+echo "  - Database: $DB_PATH"
 echo "  - Logs: $LOG_DIR/"
-echo "  - Results: $RESULTS_DIR/"
 echo ""
 echo "To view results in Optuna dashboard:"
 echo "  optuna-dashboard $DB_PATH"
 echo ""
-

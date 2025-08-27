@@ -572,7 +572,7 @@ def suggest_hyperparameters(
 
         elif pspec.type == "float":
             params[pname] = trial.suggest_float(
-                pname, pspec.low, pspec.high, log=pspec.log
+                pname, float(pspec.low), float(pspec.high), log=pspec.log
             )
 
         else:
@@ -719,12 +719,13 @@ def run_default_inline(
         )
         .default_results()
     )
+
+    logger.info("Trainin finished with the following metrics:")
     if results.metrics.best_iteration is not None:
         logger.info(
             "===>>> Best Iteration: %.4f",
             results.metrics.best_iteration
         )
-    logger.info("Trainin finished with the following metrics:")
     logger.info("===>>> RMSE: %.4f", results.metrics.rmse)
     logger.info("===>>> R²: %.4f", results.metrics.r2)
     logger.info("===>>> MBE: %.4f\n", results.metrics.mbe)
@@ -857,10 +858,10 @@ def main():
                 logger.info("="*20)
 
                 final_model_config = FinalModelConfig(
-                    name=model.upper(),
-                    encoder=encoder.upper(),
+                    name=model,
+                    encoder=encoder,
                     mode=all_args.tuning_mode,
-                    variant=variant.upper()
+                    variant=variant
                 )
 
                 if all_args.tuning_mode == "default":

@@ -27,7 +27,7 @@ SplitResult = namedtuple('SplitResult', [
 
 
 # Set the seed for reproducibility
-SEED = 100
+SEED = 10
 
 class DataSplitter(ABC):
 
@@ -91,19 +91,19 @@ class DataSplitter(ABC):
     
 class SpatialSplitter(DataSplitter):
     """Strategy 1: Full spatial split (stations completely separated)"""
-    
+
     def split(self, station_metadata: pd.DataFrame, df: pd.DataFrame) -> SplitResult:
         strata = station_metadata.Snow_Class
 
         # Split stations first
         temp_stations, test_stations = train_test_split(
-            station_metadata, test_size=150,
+            station_metadata, test_size=0.2,
             stratify=strata, random_state=self.seed
         )
 
         strata2 = temp_stations.Snow_Class
         train_stations, val_stations = train_test_split(
-            temp_stations, test_size=114,
+            temp_stations, test_size=1/8,
             stratify=strata2, random_state=self.seed
         )
 
@@ -114,6 +114,7 @@ class SpatialSplitter(DataSplitter):
         temp_df = df.query("Station_Name in @temp_stations.Station_Name")
 
         return self._prepare_output(train_df, val_df, test_df, temp_df)
+
 
 class HybridSplitter(DataSplitter):
     """Strategy 2: Stratified Random train/val + spatial test"""

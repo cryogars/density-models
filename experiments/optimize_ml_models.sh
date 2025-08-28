@@ -22,15 +22,25 @@ MODELS=("lightgbm" "xgboost" "rf" "extratrees")
 VARIANTS=("main" "climate_7d" "climate_14d")
 ENCODERS=("onehot" "target" "catboost")
 
-# Test settings (smaller subset)
-TEST_MODELS=("lightgbm")
-TEST_VARIANTS=("main")
-TEST_ENCODERS=("catboost")
-TEST_TRIALS=10
+# Quick test settings
+QUICK_MODELS=("lightgbm")
+QUICK_VARIANTS=("main")
+QUICK_ENCODERS=("catboost")
+QUICK_TRIALS=10
 
-# ===================
+# Boosting models
+BOOSTING_MODELS=("lightgbm" "xgboost")
+BOOSTING_VARIANTS=("main" "climate_7d" "climate_14d")
+BOOSTING_ENCODERS=("onehot" "target" "catboost")
+
+# Sklearn models
+SKLEARN_MODELS=("rf" "extratrees")
+SKLEARN_VARIANTS=("main" "climate_7d" "climate_14d")
+SKLEARN_ENCODERS=("onehot" "target" "catboost")
+
+# ============================================================================
 # Helper Functions
-# ===================
+# ============================================================================
 
 run_experiment() {
     local models="$1"
@@ -68,82 +78,72 @@ run_experiment() {
         --storage-url $DB_PATH \
         2>&1 | tee -a "$LOG_DIR/$log_filename"
         
-    echo "[BASH] Completed: $tuning_mode experiment at $(date)"
+    echo "Completed: $tuning_mode experiment at $(date)"
     echo ""
 }
 
-# =======================
+# ============================================================================
 # Main Execution Options
-# =======================
+# ============================================================================
 
 # Check command line argument for run mode
 RUN_MODE=${1:-"all"}
 
 case $RUN_MODE in
-    "test")
-        echo "Running TEST mode - Quick validation (default only)"
-        echo "=================================================="
-        echo "Using: ${TEST_MODELS[*]} | ${TEST_VARIANTS[*]} | ${TEST_ENCODERS[*]} | $TEST_TRIALS trials"
+    "quick")
+        echo "Running QUICK test mode"
+        echo "======================"
+        echo "Using: ${QUICK_MODELS[*]} | ${QUICK_VARIANTS[*]} | ${QUICK_ENCODERS[*]} | $QUICK_TRIALS trials"
         echo ""
-        run_experiment "${TEST_MODELS[*]}" $TEST_TRIALS "${TEST_VARIANTS[*]}" "${TEST_ENCODERS[*]}" "default"
+        run_experiment "${QUICK_MODELS[*]}" $QUICK_TRIALS "${QUICK_VARIANTS[*]}" "${QUICK_ENCODERS[*]}" "tune"
         ;;
 
-    "test-all")
-        echo "Running TEST mode - Both default and tune"
-        echo "========================================="
-        echo "Using: ${TEST_MODELS[*]} | ${TEST_VARIANTS[*]} | ${TEST_ENCODERS[*]} | $TEST_TRIALS trials each"
+    "boosting")
+        echo "Running BOOSTING models (LightGBM & XGBoost)"
+        echo "==========================================="
+        echo "Using: ${BOOSTING_MODELS[*]} | ${BOOSTING_VARIANTS[*]} | ${BOOSTING_ENCODERS[*]} | $N_TRIALS trials"
         echo ""
-        echo "--- Running test DEFAULT mode ---"
-        run_experiment "${TEST_MODELS[*]}" $TEST_TRIALS "${TEST_VARIANTS[*]}" "${TEST_ENCODERS[*]}" "default"
-        echo ""
-        echo "--- Running test TUNE mode ---"
-        run_experiment "${TEST_MODELS[*]}" $TEST_TRIALS "${TEST_VARIANTS[*]}" "${TEST_ENCODERS[*]}" "tune"
+        run_experiment "${BOOSTING_MODELS[*]}" $N_TRIALS "${BOOSTING_VARIANTS[*]}" "${BOOSTING_ENCODERS[*]}" "tune"
         ;;
 
-    "default")
-        echo "Running the default setting"
-        echo "==========================="
-        run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "default"
-        ;;
-        
-    "tune")
-        echo "Tuning ...."
-        echo "==========="
-        run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "tune"
+    "sklearn")
+        echo "Running SKLEARN models (Random Forest & Extra Trees)"
+        echo "===================================================="
+        echo "Using: ${SKLEARN_MODELS[*]} | ${SKLEARN_VARIANTS[*]} | ${SKLEARN_ENCODERS[*]} | $N_TRIALS trials"
+        echo ""
+        run_experiment "${SKLEARN_MODELS[*]}" $N_TRIALS "${SKLEARN_VARIANTS[*]}" "${SKLEARN_ENCODERS[*]}" "tune"
         ;;
         
     "all")
-        echo "Running both default and tune modes"
-        echo "==================================="
-        run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "default"
+        echo "Running ALL models with full hyperparameter tuning"
+        echo "=================================================="
         run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "tune"
         ;;
         
     *)
         echo "Unknown run mode: $RUN_MODE"
         echo "Available modes:"
-        echo "  test     - Quick test with default mode only ($TEST_TRIALS trials)"
-        echo "  test-all - Quick test with both default and tune modes ($TEST_TRIALS trials each)"
-        echo "  default  - Run default hyperparameters (full scale)"
-        echo "  tune     - Run hyperparameter tuning (full scale)"
-        echo "  all      - Run both default and tune modes (full scale)"
+        echo "  quick    - Quick test: RF + main + onehot ($QUICK_TRIALS trials)"
+        echo "  boosting - LightGBM & XGBoost with all variants ($N_TRIALS trials)"
+        echo "  sklearn  - Random Forest & Extra Trees with all variants ($N_TRIALS trials)"
+        echo "  all      - All models with all variants ($N_TRIALS trials)"
         echo ""
-        echo "Usage: $0 [test|test-all|default|tune|all]"
+        echo "Usage: $0 [quick|boosting|sklearn|all]"
         exit 1
         ;;
 esac
 
-# =================
+# ============================================================================
 # Post-processing
-# =================
+# ============================================================================
 
 echo ""
-echo "=========================================="
+echo "============================================================"
 echo "ALL EXPERIMENTS COMPLETED!"
-echo "=========================================="
+echo "============================================================"
 echo "Time: $(date)"
 echo ""
-echo "Results (db for tuning only) saved to:"
+echo "Results saved to:"
 echo "  - Database: $DB_PATH"
 echo "  - Logs: $LOG_DIR/"
 echo ""

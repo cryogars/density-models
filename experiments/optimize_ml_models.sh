@@ -23,9 +23,9 @@ VARIANTS=("main" "climate_7d" "climate_14d")
 ENCODERS=("onehot" "target" "catboost")
 
 # Quick test settings
-QUICK_MODELS=("lightgbm")
+QUICK_MODELS=("rf")
 QUICK_VARIANTS=("main")
-QUICK_ENCODERS=("catboost")
+QUICK_ENCODERS=("onehot")
 QUICK_TRIALS=10
 
 # Boosting models
@@ -82,12 +82,27 @@ run_experiment() {
     echo ""
 }
 
+# Nohup wrapper function
+run_nohup() {
+    local mode=$1
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local logfile="nohup_${mode}_${timestamp}.log"
+    
+    echo "Starting $mode in background..."
+    echo "Log file: $logfile"
+    nohup $0 $mode > $logfile 2>&1 &
+    
+    echo "Process ID: $!"
+    echo "Monitor with: tail -f $logfile"
+    echo ""
+}
+
 # ============================================================================
 # Main Execution Options
 # ============================================================================
 
 # Check command line argument for run mode
-RUN_MODE=${1:-"all"}
+RUN_MODE=${1:-"help"}
 
 case $RUN_MODE in
     "quick")
@@ -119,16 +134,45 @@ case $RUN_MODE in
         echo "=================================================="
         run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "tune"
         ;;
+
+    # Nohup modes
+    "nohup-quick")
+        run_nohup quick
+        ;;
         
-    *)
-        echo "Unknown run mode: $RUN_MODE"
-        echo "Available modes:"
+    "nohup-boosting")
+        run_nohup boosting
+        ;;
+        
+    "nohup-sklearn")
+        run_nohup sklearn
+        ;;
+        
+    "nohup-all")
+        run_nohup all
+        ;;
+        
+    "help"|*)
+        echo "Hyperparameter Optimization Script"
+        echo "=================================="
+        echo ""
+        echo "Direct execution:"
         echo "  quick    - Quick test: RF + main + onehot ($QUICK_TRIALS trials)"
         echo "  boosting - LightGBM & XGBoost with all variants ($N_TRIALS trials)"
         echo "  sklearn  - Random Forest & Extra Trees with all variants ($N_TRIALS trials)"
         echo "  all      - All models with all variants ($N_TRIALS trials)"
         echo ""
-        echo "Usage: $0 [quick|boosting|sklearn|all]"
+        echo "Background execution (nohup):"
+        echo "  nohup-quick    - Run quick test in background"
+        echo "  nohup-boosting - Run boosting models in background"
+        echo "  nohup-sklearn  - Run sklearn models in background"
+        echo "  nohup-all      - Run all models in background"
+        echo ""
+        echo "Usage examples:"
+        echo "  $0 quick              # Run quick test directly"
+        echo "  $0 nohup-all          # Run all models in background"
+        echo "  tail -f nohup_*.log   # Monitor background job"
+        echo ""
         exit 1
         ;;
 esac

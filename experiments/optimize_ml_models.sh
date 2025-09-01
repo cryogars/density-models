@@ -98,6 +98,12 @@ case $RUN_MODE in
         run_experiment "${QUICK_MODELS[*]}" $QUICK_TRIALS "${QUICK_VARIANTS[*]}" "${QUICK_ENCODERS[*]}" "tune"
         ;;
 
+    "default")
+        echo "--- Running DEFAULT hyperparameters ---"
+        echo "======================================="
+        run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "default"
+        ;;
+
     "boosting")
         echo "Running BOOSTING models (LightGBM & XGBoost)"
         echo "==========================================="

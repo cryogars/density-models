@@ -115,20 +115,28 @@ case $RUN_MODE in
         ;;
         
     "all")
-        echo "Running ALL models with full hyperparameter tuning"
-        echo "=================================================="
+        echo "Running ALL models - both default and tuned hyperparameters"
+        echo "=========================================================="
+        echo ""
+        echo "--- Running DEFAULT hyperparameters ---"
+        run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "default"
+        echo ""
+        echo "--- Running TUNED hyperparameters ---"
         run_experiment "${MODELS[*]}" $N_TRIALS "${VARIANTS[*]}" "${ENCODERS[*]}" "tune"
         ;;
         
     *)
         echo "Unknown run mode: $RUN_MODE"
         echo "Available modes:"
-        echo "  quick    - Quick test: RF + main + onehot ($QUICK_TRIALS trials)"
-        echo "  boosting - LightGBM & XGBoost with all variants ($N_TRIALS trials)"
-        echo "  sklearn  - Random Forest & Extra Trees with all variants ($N_TRIALS trials)"
-        echo "  all      - All models with all variants ($N_TRIALS trials)"
+        echo "  quick    - Quick test: RF + main + onehot ($QUICK_TRIALS trials, tune only)"
+        echo "  boosting - LightGBM & XGBoost with all variants ($N_TRIALS trials, tune only)"
+        echo "  sklearn  - Random Forest & Extra Trees with all variants ($N_TRIALS trials, tune only)"
+        echo "  all      - All models with all variants ($N_TRIALS trials, both default AND tuned)"
         echo ""
         echo "Usage: $0 [quick|boosting|sklearn|all]"
+        echo ""
+        echo "Note: 'all' mode runs both default hyperparameters and hyperparameter tuning"
+        echo "      for complete baseline vs optimized comparison."
         exit 1
         ;;
 esac

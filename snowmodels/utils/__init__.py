@@ -3,8 +3,8 @@ The :mod:`snowmodels.utils` module includes various utilities.
 """
 
 from ._conversions import ConvertData
-from ._hyperopt_utils import load_data
 from ._snotel_data_download import SnotelData
+from ._hyperopt_utils import ecnoder_preprocessor
 from ._ml_model_transferability import plot_learning_curve
 from ._other_utils import preprocess_set_to_nan, calculate_lagged_vars, calculate_pptwt
 from ._model_utils import validate_DOY, evaluate_model, compare_multiple_models, SplitterFactory
@@ -12,7 +12,6 @@ from ._model_utils import validate_DOY, evaluate_model, compare_multiple_models,
 
 
 __all__ = [
-    'load_data',
     'SnotelData',
     'ConvertData',
     'validate_DOY',
@@ -22,5 +21,6 @@ __all__ = [
     'plot_learning_curve',
     'preprocess_set_to_nan',
     'calculate_lagged_vars',
+    'ecnoder_preprocessor',
     'compare_multiple_models', 
 ]

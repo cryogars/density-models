@@ -449,7 +449,7 @@ def ecnoder_preprocessor(
     return splits
 
 def model_variant_selector(
-        variant: Literal['main', 'climate_7', 'climate_14'],
+        variant: Literal['main', 'climate_7d', 'climate_14d'],
         data: DataSplits
 ) -> DataSplits:
     """Select and validate model variant"""

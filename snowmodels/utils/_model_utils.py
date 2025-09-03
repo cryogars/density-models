@@ -59,6 +59,7 @@ class DataSplitter(ABC):
         X_test, y_test = test_df.drop('Snow_Density', axis=1), test_df.Snow_Density
         X_temp, y_temp = temp_df.drop('Snow_Density', axis=1), temp_df.Snow_Density
 
+
         return SplitResult(
         X_train=X_train,
         X_val=X_val,
@@ -98,13 +99,13 @@ class SpatialSplitter(DataSplitter):
         # Split stations first
         temp_stations, test_stations = train_test_split(
             station_metadata, test_size=0.2,
-            stratify=strata, random_state=self.seed
+            stratify=strata, random_state=300
         )
 
         strata2 = temp_stations.Snow_Class
         train_stations, val_stations = train_test_split(
             temp_stations, test_size=1/8,
-            stratify=strata2, random_state=self.seed
+            stratify=strata2, random_state=300
         )
 
         # Get data for each station set

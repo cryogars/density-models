@@ -161,6 +161,7 @@ class SplitterFactory:
 
     @staticmethod
     def get_all_strategies() -> list:
+        """A function that returns all splitting strategy"""
         return ['spatial', 'hybrid']
 
 # let's create a function that will help us evaluate the results of the model

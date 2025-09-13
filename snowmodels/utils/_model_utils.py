@@ -18,6 +18,9 @@ from ._conversions import ConvertData, OutOfBoundsError
 
 set_config(transform_output="pandas")
 
+# Set the seed for reproducibility
+SEED = 10
+
 # Define the structured return type
 SplitResult = namedtuple('SplitResult', [
     'X_train', 'X_val', 'X_test', 'X_temp',
@@ -25,9 +28,6 @@ SplitResult = namedtuple('SplitResult', [
     'train_df', 'val_df', 'test_df', 'temp_df'
 ])
 
-
-# Set the seed for reproducibility
-SEED = 10
 
 class DataSplitter(ABC):
 
@@ -54,17 +54,17 @@ class DataSplitter(ABC):
         """Helper method to prepare the output as a named tuple"""
 
         # Split features and target
-        X_train, y_train = train_df.drop('Snow_Density', axis=1), train_df.Snow_Density
-        X_val, y_val = val_df.drop('Snow_Density', axis=1), val_df.Snow_Density
-        X_test, y_test = test_df.drop('Snow_Density', axis=1), test_df.Snow_Density
-        X_temp, y_temp = temp_df.drop('Snow_Density', axis=1), temp_df.Snow_Density
+        x_train, y_train = train_df.drop('Snow_Density', axis=1), train_df.Snow_Density
+        x_val, y_val = val_df.drop('Snow_Density', axis=1), val_df.Snow_Density
+        x_test, y_test = test_df.drop('Snow_Density', axis=1), test_df.Snow_Density
+        x_temp, y_temp = temp_df.drop('Snow_Density', axis=1), temp_df.Snow_Density
 
 
         return SplitResult(
-        X_train=X_train,
-        X_val=X_val,
-        X_test=X_test,
-        X_temp=X_temp,
+        X_train=x_train,
+        X_val=x_val,
+        X_test=x_test,
+        X_temp=x_temp,
         y_train=y_train,
         y_val=y_val,
         y_test=y_test,
@@ -89,7 +89,7 @@ class DataSplitter(ABC):
                 splits.train_df, splits.val_df, splits.test_df
             ])['Station_Name'].nunique()
         }
-    
+
 class SpatialSplitter(DataSplitter):
     """Strategy 1: Full spatial split (stations completely separated)"""
 
@@ -118,7 +118,7 @@ class SpatialSplitter(DataSplitter):
 
 
 class HybridSplitter(DataSplitter):
-    """Strategy 2: Stratified Random train/val + spatial test"""
+    """Strategy 2: Time Series train/val + spatial test"""
 
     def split(self, station_metadata: pd.DataFrame, df: pd.DataFrame) -> SplitResult:
         strata = station_metadata.Snow_Class
@@ -148,6 +148,7 @@ class SplitterFactory:
 
     @staticmethod
     def create_splitter(strategy: str, seed: int = SEED) -> DataSplitter:
+        """Create Splitter"""
         splitters = {
             'spatial': SpatialSplitter,
             'hybrid': HybridSplitter

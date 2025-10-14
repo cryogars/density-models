@@ -82,6 +82,7 @@ cd density-models
 ### 6. Verify Installation
 
 Ensure everything is set up correctly:
+
 ```bash
 python --version  # Should return 3.11.5
 pip list  # Displays installed packages

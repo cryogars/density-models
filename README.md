@@ -120,6 +120,10 @@ Create the data folder and download:
 2. Global Seasonal Snow Classification on NSIDC: [NSIDC link](https://nsidc.org/data/nsidc-0768/versions/1). For this project, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
 3. Main Snow Survey Data: [link](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
 
+### 9. Run the Experiments
+
+If you would to reproduce our results, you can do so by running the following experiments:
+
 </details>
 
 <details close> 

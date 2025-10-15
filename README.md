@@ -124,6 +124,11 @@ Create the data folder and download:
 
 If you would to reproduce our results, you can do so by running the following experiments:
 
+```bash
+cd experiments
+./optimize_ml_models.sh
+```
+
 </details>
 
 <details close> 

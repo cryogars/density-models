@@ -1,0 +1,21 @@
+model:
+  name: lightgbm
+  variant: main
+  encoder: target
+  mode: tune
+performance:
+  metrics:
+    rmse: 5.132774432736641
+    r2: 0.961171058726151
+    mbe: -0.056816274263578465
+    best_iteration: 233
+  hyperparameters:
+    num_leaves: 51
+    learning_rate: 0.03135383407681797
+    min_child_samples: 33
+    reg_alpha: 0.00897403978403128
+    reg_lambda: 2.120153995337363
+    max_depth: 13
+config:
+  seed: 10
+  timestamp: '20250908_135834'

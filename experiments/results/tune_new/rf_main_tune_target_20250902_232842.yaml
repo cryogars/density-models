@@ -1,0 +1,19 @@
+model:
+  name: rf
+  variant: main
+  encoder: target
+  mode: tune
+performance:
+  metrics:
+    rmse: 0.051491960288088466
+    r2: 0.6755589684306857
+    mbe: 0.002392218237113536
+    best_iteration: null
+  hyperparameters:
+    n_estimators: 260
+    max_depth: 11
+    min_samples_split: 38
+    min_samples_leaf: 15
+config:
+  seed: 10
+  timestamp: '20250902_232842'

@@ -10,7 +10,6 @@ from datetime import datetime
 from dataclasses import dataclass, field, asdict
 from typing import Optional, assert_never, Literal, Dict, Any
 import yaml
-import torch
 import optuna
 import numpy as np
 import pandas as pd

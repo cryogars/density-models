@@ -32,7 +32,7 @@ MAIN_FEATURES = [
 CLIMATE_7_FEATURES = ['PRECIPITATION_lag_7d', 'TAVG_lag_7d']
 CLIMATE_14_FEATURES = ['PRECIPITATION_lag_14d', 'TAVG_lag_14d']
 NOMINAL_FEATURE = ['Snow_Class']
-XGB_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+XGB_DEVICE = "cpu"
 
 
 @dataclass

@@ -1,0 +1,21 @@
+model:
+  name: xgboost
+  variant: main
+  encoder: target
+  mode: tune
+performance:
+  metrics:
+    rmse: 0.049691597062964166
+    r2: 0.6978498374312517
+    mbe: 0.0023925594429128776
+    best_iteration: 168
+  hyperparameters:
+    eta: 0.024847815701114537
+    max_depth: 14
+    min_child_weight: 22
+    reg_alpha: 3.786959938042612e-05
+    reg_lambda: 0.0348726508759294
+    min_split_loss: 1.284793867215569
+config:
+  seed: 10
+  timestamp: '20250902_200431'

@@ -1,0 +1,19 @@
+model:
+  name: extratrees
+  variant: climate_7d
+  encoder: target
+  mode: tune
+performance:
+  metrics:
+    rmse: 0.04751582643962414
+    r2: 0.7237301467860819
+    mbe: 0.0021934931641027313
+    best_iteration: null
+  hyperparameters:
+    n_estimators: 200
+    max_depth: 15
+    min_samples_split: 22
+    min_samples_leaf: 22
+config:
+  seed: 10
+  timestamp: '20250902_232842'

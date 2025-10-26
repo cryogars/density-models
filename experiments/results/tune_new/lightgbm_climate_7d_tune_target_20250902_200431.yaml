@@ -1,0 +1,21 @@
+model:
+  name: lightgbm
+  variant: climate_7d
+  encoder: target
+  mode: tune
+performance:
+  metrics:
+    rmse: 0.046306588022897235
+    r2: 0.7376128955191523
+    mbe: 0.001486093941228391
+    best_iteration: 99
+  hyperparameters:
+    num_leaves: 202
+    learning_rate: 0.04239942996444115
+    min_child_samples: 86
+    reg_alpha: 1.0290351857869753e-05
+    reg_lambda: 0.005880313324688824
+    max_depth: 9
+config:
+  seed: 10
+  timestamp: '20250902_200431'

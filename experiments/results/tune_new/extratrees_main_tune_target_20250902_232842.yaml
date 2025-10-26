@@ -1,0 +1,19 @@
+model:
+  name: extratrees
+  variant: main
+  encoder: target
+  mode: tune
+performance:
+  metrics:
+    rmse: 0.05048867734206962
+    r2: 0.6880787881558161
+    mbe: 0.0012637571574909455
+    best_iteration: null
+  hyperparameters:
+    n_estimators: 180
+    max_depth: 15
+    min_samples_split: 27
+    min_samples_leaf: 14
+config:
+  seed: 10
+  timestamp: '20250902_232842'

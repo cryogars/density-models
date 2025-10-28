@@ -1,0 +1,21 @@
+model:
+  name: xgboost
+  variant: climate_14d
+  encoder: target
+  mode: tune
+performance:
+  metrics:
+    rmse: 0.04730912480244256
+    r2: 0.7261285570101321
+    mbe: 0.001672993983166043
+    best_iteration: 247
+  hyperparameters:
+    eta: 0.01714901638940304
+    max_depth: 8
+    min_child_weight: 41
+    reg_alpha: 1.5454279071381932e-06
+    reg_lambda: 1.1415624593784179e-05
+    min_split_loss: 0.007201629187455184
+config:
+  seed: 10
+  timestamp: '20250902_200431'

@@ -1,0 +1,19 @@
+model:
+  name: rf
+  variant: climate_14d
+  encoder: target
+  mode: tune
+performance:
+  metrics:
+    rmse: 0.04890667854983616
+    r2: 0.7073198556478943
+    mbe: 0.0013820648275356831
+    best_iteration: null
+  hyperparameters:
+    n_estimators: 240
+    max_depth: 14
+    min_samples_split: 40
+    min_samples_leaf: 25
+config:
+  seed: 10
+  timestamp: '20250902_232842'

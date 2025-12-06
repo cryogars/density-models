@@ -51,6 +51,11 @@ def calculate_lagged_vars(df, col_of_interest, window=7):
     )
     return df
 
+def add_lags_with_custom_func(df, cols, max_lag):
+    for col in cols:
+        for window in range(1, max_lag + 1):
+            df = calculate_lagged_vars(df, col_of_interest=col, window=window)
+    return df
 
 
 def calculate_pptwt(group, df_of_interest: pd.DataFrame) -> float:

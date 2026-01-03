@@ -155,7 +155,7 @@ The authors would like to thank:
 2. [M3Works](https://m3works.io/) for their [metloom](https://metloom.readthedocs.io/en/latest/usage.html#snotel) package, which we used to download the SNOTEL data.
 3. Maine Geological Survey and the United States Geological Survey for providing the [Maine Snow Survey data](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
 4. The creators of the [srtm.py Python package](https://github.com/tkrajina/srtm.py?tab=readme-ov-file) for their open-source tool, which we used to obtain the SRTM elevation data.
-5. U.S. Army CRREL for the funding (BAA W913E520C0017).
+5. U.S. Army CRREL for the funding (projects W913E523C0002).
 
 </details>
 

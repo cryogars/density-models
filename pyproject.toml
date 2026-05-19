@@ -4,11 +4,13 @@ version = "0.0.1"
 dynamic = [
     "dependencies",
 ]
-description = "A machine learning for snow density estimation project"
+description = "A machine learning for snow density and SWE estimation project"
 readme = "README.md"
 requires-python = ">=3.11"
 keywords = [
     "density-models",
+    "SWE",
+    "Snow Density"
 ]
 license = {text = "MIT License"}
 authors = [
@@ -33,6 +35,11 @@ dependencies = {file = ["requirements.txt"]}
 
 [tool.distutils.bdist_wheel]
 universal = true
+
+[project.optional-dependencies]
+test = [
+    "pytest"
+]
 
 
 [tool.bumpversion]

@@ -1,5 +1,3 @@
-
-
 <h1 align="center">
 Snow Density and SWE Estimation using Machine Learning</h1>
 <p align="center">This is the codebase for "A Machine Learning Model for Estimating Snow Density and Snow Water Equivalent from Snow Depth and Seasonal Snow Climate Classes."

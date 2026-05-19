@@ -164,7 +164,7 @@ The authors would like to thank:
 We would appreciate citations if you use our work.
 
 ```bash
-@article { AMachineLearningModelforEstimatingSnowDensityandSnowWaterEquivalentfromSnowDepthandSeasonalSnowClimateClasses,
+@article {alabiML,
       author = "Ibrahim Olalekan Alabi and Hans-Peter Marshall and Jodi Mead and Ernesto Trujillo",
       title = "A Machine Learning Model for Estimating Snow Density and Snow Water Equivalent from Snow Depth and Seasonal Snow Climate Classes",
       journal = "Artificial Intelligence for the Earth Systems",

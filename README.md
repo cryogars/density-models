@@ -53,6 +53,8 @@ conda env create --file environment.yml
 conda activate ml_density_env 
 ```
 
+Jump to step 4.
+
 ### 3. Create and Activate a Virtual Environment (Non-Conda Users)
 
 For those not using Conda, you can set up a virtual environment with [venv](https://docs.python.org/3/library/venv.html):

@@ -62,7 +62,7 @@ python -m venv ml_density_env
 source ml_density_env/bin/activate # activate the virtual environment
 ```
 
-Note: the Python version will be the default version on your PC. You can manage Python version using [pyenv](https://github.com/pyenv/pyenv).
+Note: The Python version in the `ml_density_env` evironment will be the default version on your PC. You can manage Python versions using [pyenv](https://github.com/pyenv/pyenv).
 
 ### 4. Create and Navigate to Directory
 

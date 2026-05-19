@@ -53,7 +53,7 @@ conda env create --file environment.yml
 conda activate ml_density_env 
 ```
 
-Jump to step 4.
+Conda users, jump to step 4.
 
 ### 3. Create and Activate a Virtual Environment (Non-Conda Users)
 

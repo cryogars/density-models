@@ -104,28 +104,16 @@ When you clone this repository, you should already have the data folder. To acce
 2. Global Seasonal Snow Classification: [NSIDC link](https://nsidc.org/data/nsidc-0768/versions/1). For this project, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
 3. Main Snow Survey Data (MSSD): [Link to MSSD used in our study](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
 
+### 8. Hyperparameter Tuning
 
-</details>
-
-<details close> 
-  <summary><h2>Directory Setup</summary>
-
-Create the data folder and download:
-
-1. SNOTEL Data: [link](https://drive.google.com/file/d/1tcMnNPq_SYLGoLEY-FeBJVaJf1qqtntZ/view?usp=sharing). 
-2. Global Seasonal Snow Classification on NSIDC: [NSIDC link](https://nsidc.org/data/nsidc-0768/versions/1). For this project, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
-3. Main Snow Survey Data: [link](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
-
-### 9. Run the Experiments
-
-If you would to reproduce our results, you can do so by running the following experiments:
+If you would to tune hyperparameters, you can do so by running the following experiments:
 
 ```bash
 cd experiments
 ./optimize_ml_models.sh
 ```
-
 </details>
+
 
 <details close> 
   <summary><h2>Deactivate and/or Remove Environment</summary>

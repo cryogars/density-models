@@ -22,9 +22,9 @@ This study proposes a machine learning model for estimating snowpack bulk densit
 
 The dataset used in this study comes from thre sources:
 
-- SNOTEL Dataset: [SNOTEL data](https://www.nrcs.usda.gov/resources/data-and-reports/snow-and-climate-monitoring-predefined-reports-and-maps) was downloaded using the [metloom](https://metloom.readthedocs.io/en/latest/usage.html#snotel) Python package.
-- Global Seasonal Snow Classification: [Link to the dataset](https://nsidc.org/data/nsidc-0768/versions/1).
-- Maine Snow Survey Data: [Link to the dataset](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
+- SNOTEL Dataset.
+- Global Seasonal Snow Classification.
+- Maine Snow Survey Data.
 
 </details>
 
@@ -80,36 +80,31 @@ git clone https://github.com/cryogars/density-models.git
 cd density-models
 ```
 
-### 6. Verify Installation
-
-Ensure everything is set up correctly:
-
-```bash
-python --version  # Should return 3.11.5
-pip list  # Displays installed packages
-```
-
-### 7. Run Tests (Optional)
-
-To verify the models are working correctly, you can run the tests:
-
-```bash
-pytest -v # Run all tests
-```
-
-### 8. Install Source Code
+### 6a. Install Source Code
 
 ```bash
 pip install .
 ```
 
-If you wish to modify the source code, install in development mode:
+### 6b. Tests (optional)
+
+To verify the models are working correctly, you can run the tests:
 
 ```bash
-pip install -e .
+pip install .[test] && pytest
 ```
 
 **Note**: This project uses `conda` to only manage the Python version and install Jupyter. All package dependencies are installed via `pip`. This approach makes the installation process more consistent whether you're using conda or another environment management tool (e.g., pyenv + venv). All dependencies are specified in `requirements.txt`
+
+### 7. Download Data
+
+When you clone this repository, you should already have the data folder. To access the raw data we used in this study, download them:
+
+1. SNOTEL Data: [Link to the raw SNOTEL data we used](https://drive.google.com/file/d/1tcMnNPq_SYLGoLEY-FeBJVaJf1qqtntZ/view?usp=sharing). With this, you do not need to download the data yourself via metloom.
+2. Global Seasonal Snow Classification: [NSIDC link](https://nsidc.org/data/nsidc-0768/versions/1). For this project, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
+3. Main Snow Survey Data (MSSD): [Link to MSSD used in our study](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
+
+
 </details>
 
 <details close> 

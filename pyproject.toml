@@ -38,7 +38,7 @@ universal = true
 
 [project.optional-dependencies]
 test = [
-    "pytest"
+    "pytest>=8"
 ]
 
 

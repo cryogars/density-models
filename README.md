@@ -159,6 +159,29 @@ The authors would like to thank:
 </details>
 
 <details close> 
+  <summary><h2>Citation</summary>
+
+We would appreciate citations if you use our work.
+
+```bash
+@article { AMachineLearningModelforEstimatingSnowDensityandSnowWaterEquivalentfromSnowDepthandSeasonalSnowClimateClasses,
+      author = "Ibrahim Olalekan Alabi and Hans-Peter Marshall and Jodi Mead and Ernesto Trujillo",
+      title = "A Machine Learning Model for Estimating Snow Density and Snow Water Equivalent from Snow Depth and Seasonal Snow Climate Classes",
+      journal = "Artificial Intelligence for the Earth Systems",
+      year = "2026",
+      publisher = "American Meteorological Society",
+      address = "Boston MA, USA",
+      volume = "5",
+      number = "2",
+      doi = "10.1175/AIES-D-25-0021.1",
+      pages=      "250021",
+      url = "https://journals.ametsoc.org/view/journals/aies/5/2/AIES-D-25-0021.1.xml"
+}
+```
+
+</details>
+
+<details close> 
   <summary><h2>Contact</summary>
 
 For any questions or issues, please open an **issue** or reach out to **ibrahimolalekana@u.boisestate.edu**.

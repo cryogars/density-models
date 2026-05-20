@@ -100,11 +100,11 @@ pip install .[test] && pytest
 
 When you clone this repository, you should already have the data folder. To access the raw data we used in this study, download them:
 
-1. SNOTEL Data: [Link to the raw SNOTEL data we used](https://drive.google.com/file/d/1tcMnNPq_SYLGoLEY-FeBJVaJf1qqtntZ/view?usp=sharing). With this, you do not need to download the data yourself via metloom.
+1. SNOTEL Data: [Link to the raw SNOTEL data we used](https://drive.google.com/file/d/11wpcYuG8m58aBuA3UX0XOaBcWwyvPYS3/view?usp=sharing). With this, you do not need to download the data yourself via metloom.
 2. Global Seasonal Snow Classification: [NSIDC link](https://nsidc.org/data/nsidc-0768/versions/1). For this project, download `SnowClass_NA_300m_10.0arcsec_2021_v01.0.nc`.
 3. Main Snow Survey Data (MSSD): [Link to MSSD used in our study](https://mgs-maine.opendata.arcgis.com/datasets/maine-snow-survey-data/explore).
 
-### 8. Hyperparameter Tuning
+### 8. Hyperparameter Tuning (optional)
 
 If you would to tune hyperparameters, you can do so by running the following experiments:
 

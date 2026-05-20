@@ -5,15 +5,12 @@ The :mod:`snowmodels.utils` module includes various utilities.
 from ._conversions import ConvertData
 from ._snotel_data_download import SnotelData
 from ._other_utils import preprocess_set_to_nan, add_multiple_lags, calculate_pptwt
-from ._hyperopt_utils import ecnoder_preprocessor, load_data, model_variant_selector, load_config
 from ._model_utils import validate_DOY, evaluate_model, compare_multiple_models, SplitterFactory, SplitResult
 
 
 
 __all__ = [
-    'load_data',
     'SnotelData',
-    'load_config',
     'ConvertData',
     'SplitResult',
     'validate_DOY',
@@ -22,7 +19,5 @@ __all__ = [
     'SplitterFactory',
     'add_multiple_lags',
     'preprocess_set_to_nan',
-    'ecnoder_preprocessor',
-    'compare_multiple_models', 
-    'model_variant_selector'
+    'compare_multiple_models'
 ]

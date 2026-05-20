@@ -169,6 +169,6 @@ We would appreciate citations if you use our work.
 <details close> 
   <summary><h2>Contact</summary>
 
-For any questions or issues, please open an **issue** or reach out to **ibrahimolalekana@u.boisestate.edu**.
+For any questions or issues, please open an **issue** (see [ISSUE_TEMPLATE](https://github.com/cryogars/density-models/tree/main/.github/ISSUE_TEMPLATE)) or reach out to **ibrahimolalekana@u.boisestate.edu**.
 
 </details>

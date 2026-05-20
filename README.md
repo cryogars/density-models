@@ -131,6 +131,21 @@ conda env remove --name ml_density_env
 </details>
 
 <details close> 
+  <summary><h2>Using the LighGBM Model to Estimate Snow Density</summary>
+
+To use the best ML model (LighGBM) to estimate snow density, see [an example](https://github.com/cryogars/density-models/blob/main/notebooks/making_predictions.ipynb).
+
+```bash
+conda deactivate
+```
+
+To completely remove the environment, run:
+```bash
+conda env remove --name ml_density_env
+```
+</details>
+
+<details close> 
   <summary><h2>Acknowledgments</summary>
 
 The authors would like to thank:

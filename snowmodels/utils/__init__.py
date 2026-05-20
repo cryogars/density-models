@@ -21,7 +21,6 @@ __all__ = [
     'calculate_pptwt',
     'SplitterFactory',
     'add_multiple_lags',
-    'plot_learning_curve',
     'preprocess_set_to_nan',
     'ecnoder_preprocessor',
     'compare_multiple_models', 
